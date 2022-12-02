@@ -16,3 +16,4 @@ regex = "*"
 rust-ini = "*"
 dirs = "*"
 threadpool = "1.0"
+rss = { git = "https://github.com/ChengLuffy/rss.git" }

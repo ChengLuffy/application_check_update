@@ -1,10 +1,11 @@
 use core::str;
-use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp, };
+use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp, default, };
 use plist::Value;
 use lazy_static::lazy_static;
 use regex::Regex;
 use ini::{Ini, Properties};
 use threadpool::ThreadPool;
+use rss::Channel;
 
 fn main() {
     let apps_path = Path::new("/Applications");
@@ -12,7 +13,7 @@ fn main() {
     let pool = ThreadPool::new(n_workers);
     for item in fs::read_dir(apps_path).unwrap() {
         // 直接使用 thread::spawn 会产生 `Too many open files` 的问题，也不知道这是不是合适的解决方法
-        // pool.execute(move|| {
+        pool.execute(move|| {
             match item {
                 Ok(path) => {
                     // if path.path().file_name().unwrap_or_default().to_str() != Some("饿了么.app") {
@@ -27,13 +28,16 @@ fn main() {
                 },
                 Err(error) => println!("{:?}", error)
             }
-        // });
+        });
     }
     pool.join();
+
     // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
     // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
     // let version = homebrew_check("parallels desktop", "com.parallels.desktop.console");
     // println!("{}", version);
+    // let remote_info = sparkle_feed("https://raw.githubusercontent.com/xjbeta/AppUpdaterAppcasts/master/Aria2D/Appcast.xml");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
 }
 
 /// 根据应用类型查询更新并输出
@@ -43,12 +47,13 @@ fn check_update(app_info: AppInfo) {
     loop {
         remote_info = match check_update_type {
             CheckUpType::MAS(bundle_id) =>  area_check(bundle_id), 
-            CheckUpType::Sparkle(feed_url) => sparkle_app_check(feed_url),
+            CheckUpType::Sparkle(feed_url) => sparkle_feed(feed_url),
             CheckUpType::HomeBrew {app_name, bundle_id} => homebrew_check(app_name, bundle_id)
-            // _ => String::new()
+            // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
         };
         if &remote_info.version == "-1" {
             continue;
+            // break;
         } else {
             break;
         }
@@ -61,8 +66,9 @@ fn check_update(app_info: AppInfo) {
         println!("remote version check failed");
         println!("=====\n");
     }
-    let ordering = cmp_version(&app_info.version, &remote_info.version);
+    let ordering = cmp_version(&app_info.version, &remote_info.version, false);
     if ordering.is_lt() {
+    // if &remote_info.version != "-2" {
         println!("=====");
         println!("{}", app_info.name);
         println!("local version {}", app_info.version);
@@ -265,19 +271,51 @@ async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     }
 }
 
-/// 通过 `Sparkle` xml 读取应用版本信息
 #[tokio::main]
-async fn sparkle_app_check(feed_url: &str) -> RemoteInfo {
-    if let Ok(resp) = reqwest::get(feed_url).await {
-        if let Ok(text) = resp.text().await {
-            let result = extract_sparkle_version(&text);
-            if result.len() > 0 {
-                let version = result.last().unwrap();
-                let update_page_url = extract_sparkle_url_for_version(&text, version);
-                return RemoteInfo {
-                    version: version.to_string(),
-                    update_page_url: update_page_url.to_string()
-                };
+async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
+    if let Ok(content) = reqwest::get(feed_url).await {
+        if let Ok(bytes_content) = content.bytes().await {
+            if let Ok(channel) = Channel::read_from(&bytes_content[..]) {
+                let mut items: Vec<rss::Item> = channel.items().into();
+                items.sort_by(|a, b| {
+                    if let Some(a_enclosure) = a.enclosure() {
+                        if let Some(b_enclosure) = b.enclosure() {
+                            let mut a_version = a_enclosure.version.as_str();
+                            if !a_version.contains(".") {
+                                a_version = &a_enclosure.short_version.as_str();
+                            }
+                            if a_version.len() == 0 {
+                                a_version = a.title().unwrap_or_default();
+                            }
+                            let mut b_version = b_enclosure.version.as_str();
+                            if !b_version.contains(".") {
+                                b_version = &b_enclosure.short_version.as_str();
+                            }
+                            if b_version.len() == 0 {
+                                b_version = b.title().unwrap_or_default();
+                            }
+                            return cmp_version(&a_version, &b_version, true);
+                        }
+                    }
+                    return std::cmp::Ordering::Equal;
+                });
+                // println!("{:?}", &items);
+                if let Some(item) = items.last() {
+                    if let Some(enclosure) = item.enclosure() {
+                        let mut version = enclosure.version.as_str();
+                        if !version.contains(".") {
+                            version = &enclosure.short_version;
+                        }
+                        if version.len() == 0 {
+                            version = item.title().unwrap_or_default();
+                        }
+                        let result = RemoteInfo {
+                            version: version.to_string(),
+                            update_page_url: enclosure.url.to_string()
+                        };
+                        return result;
+                    }
+                }
             }
         }
     }
@@ -329,44 +367,6 @@ fn extract_rb_file_for_version(text: &str) -> String {
     RE.find(text).map(|mat| mat.as_str()).unwrap_or_default().to_string()
 }
 
-/// 通过正则读取 `Sparkle` xml 文件内的版本信息
-fn extract_sparkle_version(text: &str) -> Vec<&str> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r#"sparkle:(shortVersionString|version)(.{1,3})((\d|\.)+)"#).unwrap();
-    }
-    let result: Vec<&str> = RE.find_iter(text).map(|mat| mat.as_str()).into_iter().filter(|item| {
-        item.contains(".")
-    }).map(|item| {
-        if item.contains("\"") {
-            let temp: Vec<&str> = item.split("\"").collect();
-            temp[1]
-        } else {
-            let temp: Vec<&str> = item.split(">").collect();
-            temp[1]
-        }
-    }).collect();
-    sort_versions(result)
-    // println!("{:?}", result);
-}
-
-/// 通过正则读取 `Sparkle` xml 文件内的应用下载地址信息
-fn extract_sparkle_url_for_version(text: &str, version: &str) -> String {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r#"http(.+)(\.zip|\.dmg|\.zip|\.app)"#).unwrap();
-    }
-    // RE.find(text).map(|mat| mat.as_str())
-    let results: Vec<&str> = RE.find_iter(text).map(|mat| mat.as_str()).collect();
-    if let Some(result) = results.iter().find(|item| item.contains(version)) {
-        result.to_string()
-    } else {
-        if results.len() > 0 {
-            results[0].to_string()
-        } else {
-            String::new()
-        }
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // 版本号排序
 ////////////////////////////////////////////////////////////////////////////////
@@ -374,16 +374,26 @@ fn extract_sparkle_url_for_version(text: &str, version: &str) -> String {
 /// 版本号排序
 fn sort_versions(mut versions: Vec<&str>) -> Vec<&str> {
     versions.sort_by(|a, b| {
-        cmp_version(a, b)
+        cmp_version(a, b, true)
     });
     // println!("{:?}", result);
     versions
 }
 
-/// 版本好比对
-fn cmp_version(a: &str, b: &str) -> cmp::Ordering {
-    let arr1: Vec<&str> = a.split(".").collect();
-    let arr2: Vec<&str> = b.split(".").collect();
+/// 版本号比对
+fn cmp_version(a: &str, b: &str, compare_len: bool) -> cmp::Ordering {
+    let mut a_version_str = a;
+    if a.contains(" ") {
+        let temp: Vec<&str> = a.split(" ").collect();
+        a_version_str = temp.get(0).unwrap_or(&"");
+    }
+    let mut b_version_str = b;
+    if b.contains(" ") {
+        let temp: Vec<&str> = b.split(" ").collect();
+        b_version_str = temp.get(0).unwrap_or(&"");
+    }
+    let arr1: Vec<&str> = a_version_str.split(".").collect();
+    let arr2: Vec<&str> = b_version_str.split(".").collect();
     let length = cmp::min(arr1.len(), arr2.len());
     for i in 0..length {
         let num1: usize = arr1.get(i).unwrap_or(&"0").parse().unwrap_or(0);
@@ -393,7 +403,11 @@ fn cmp_version(a: &str, b: &str) -> cmp::Ordering {
             return re;
         }
     }
-    return cmp::Ordering::Equal;
+    if compare_len {
+        return arr1.len().cmp(&arr2.len());
+    } else {
+        return cmp::Ordering::Equal;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
