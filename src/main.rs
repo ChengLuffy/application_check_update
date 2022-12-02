@@ -1,0 +1,427 @@
+use core::str;
+use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp, };
+use plist::Value;
+use lazy_static::lazy_static;
+use regex::Regex;
+use ini::{Ini, Properties};
+use threadpool::ThreadPool;
+
+fn main() {
+    let apps_path = Path::new("/Applications");
+    let n_workers = 5;
+    let pool = ThreadPool::new(n_workers);
+    for item in fs::read_dir(apps_path).unwrap() {
+        // 直接使用 thread::spawn 会产生 `Too many open files` 的问题，也不知道这是不是合适的解决方法
+        // pool.execute(move|| {
+            match item {
+                Ok(path) => {
+                    // if path.path().file_name().unwrap_or_default().to_str() != Some("饿了么.app") {
+                    //     println!("{:?}", path);
+                    //     continue;
+                    // }
+                    let app_info = check_app_info(&path);
+                    match app_info {
+                        Some(info) => check_update(info),
+                        None => () // println!("{:?} 无法解析应用信息", &path)
+                    }
+                },
+                Err(error) => println!("{:?}", error)
+            }
+        // });
+    }
+    pool.join();
+    // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
+    // let version = homebrew_check("parallels desktop", "com.parallels.desktop.console");
+    // println!("{}", version);
+}
+
+/// 根据应用类型查询更新并输出
+fn check_update(app_info: AppInfo) {
+    let check_update_type = &app_info.check_update_type;
+    let mut remote_info: RemoteInfo;
+    loop {
+        remote_info = match check_update_type {
+            CheckUpType::MAS(bundle_id) =>  area_check(bundle_id), 
+            CheckUpType::Sparkle(feed_url) => sparkle_app_check(feed_url),
+            CheckUpType::HomeBrew {app_name, bundle_id} => homebrew_check(app_name, bundle_id)
+            // _ => String::new()
+        };
+        if &remote_info.version == "-1" {
+            continue;
+        } else {
+            break;
+        }
+    }
+    if remote_info.version.len() == 0 {
+        println!("=====");
+        println!("{}", app_info.name);
+        println!("{:?}", app_info.check_update_type);
+        println!("local version {}", app_info.version);
+        println!("remote version check failed");
+        println!("=====\n");
+    }
+    let ordering = cmp_version(&app_info.version, &remote_info.version);
+    if ordering.is_lt() {
+        println!("=====");
+        println!("{}", app_info.name);
+        println!("local version {}", app_info.version);
+        println!("remote version {}", remote_info.version);
+        println!("{}", remote_info.update_page_url);
+        println!("=====\n");
+    }
+}
+
+/// 查询应用类型
+/// 
+/// - 未能识别的应用类型将跳过查询
+/// - 包内存在 `_MASReceipt` 路径判断为 MAS 应用
+/// - 包内存在 `Wrapper/iTunesMetadata.plist` 路径判断为 iOS 应用
+/// - `Info.plist` 中存在 `SUFeedURL` 字段判断为依赖 `Sparkle` 检查更新的应用
+/// - 其他应用通过 `HomeBrew-Casks` 查询版本号
+fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
+    let path = entry.path();
+    let app_name = path.file_name().unwrap_or_default();
+    let app_name_str = app_name.to_str().unwrap_or_default();
+    if !app_name_str.starts_with(".") && app_name_str.ends_with(".app") {
+        let content_path = &path.join("Contents");
+        let receipt_path = &content_path.join("_MASReceipt");
+        let wrapper_path = &path.join("Wrapper/iTunesMetadata.plist");
+        let info_plist_path = &content_path.join("Info.plist");
+        let name_strs: Vec<&str> = app_name_str.split(".app").collect();
+        let name_str = name_strs[0];
+        if wrapper_path.exists() {
+            let plist_info = read_plist_info(wrapper_path);
+            if check_is_ignore(&plist_info.bundle_id) {
+                return None;
+            }
+            let cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
+            let app_info = AppInfo {
+                name: name_str.to_string(),
+                version: plist_info.version.to_string(),
+                check_update_type: cu_type
+            };
+            return Some(app_info);
+        } else {
+            let plist_info = read_plist_info(info_plist_path);
+            if check_is_ignore(&plist_info.bundle_id) {
+                return None;
+            }
+            let cu_type: CheckUpType;
+            if receipt_path.exists() {
+                cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
+            } else if let Some(feed_url) = plist_info.feed_url {
+                cu_type = CheckUpType::Sparkle(feed_url.to_string());
+            } else {
+                cu_type = CheckUpType::HomeBrew {
+                    app_name: name_str.to_string(),
+                    bundle_id: plist_info.bundle_id.replace(":", "").to_string()
+                };
+            }
+            let app_info = AppInfo {
+                name: name_str.to_string(), 
+                version: plist_info.version.to_string(), 
+                check_update_type: cu_type.into()
+            };
+            return Some(app_info);
+        }
+    }
+    return None;
+}
+
+/// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
+fn area_check(bundle_id: &str) -> RemoteInfo {
+    let version = mas_app_check("cn", bundle_id);
+    if let Some(ver) = version {
+        return RemoteInfo {version: ver, update_page_url: "macappstore://".to_string()};
+    }
+    let version1 = mas_app_check("us", bundle_id);
+    if let Some(ver) = version1 {
+        return RemoteInfo {version: ver, update_page_url: "macappstore://".to_string()};
+    }
+    return RemoteInfo {version: String::new(), update_page_url: "macappstore://".to_string()};
+}
+
+/// 从 `Info.plist` 文件中读取有用信息
+fn read_plist_info(plist_path: &PathBuf) -> PlistInfo {
+    let mut short_version_key_str = "CFBundleShortVersionString";
+    let mut version_key_str = "CFBundleVersion";
+    let mut bundle_id_key_str = "CFBundleIdentifier";
+    let feed_url_key = "SUFeedURL";
+    if plist_path.ends_with("Info.plist") == false {
+        short_version_key_str = "bundleShortVersionString";
+        version_key_str = "bundleShortVersionString";
+        bundle_id_key_str = "softwareVersionBundleId";
+    }
+    let value = Value::from_file(plist_path).expect("failed to read plist file");
+    let bundle_id = value
+                            .as_dictionary()
+                            .and_then(|dict| dict.get(bundle_id_key_str))
+                            .and_then(|id| id.as_string()).unwrap_or("");
+    if bundle_id.len() == 0 {
+        let info_plist_path = plist_path.parent().unwrap().parent().unwrap().join("WrappedBundle/Info.plist");
+        return read_plist_info(&info_plist_path);
+    }
+    let mut version = value
+                                .as_dictionary()
+                                .and_then(|dict| dict.get(short_version_key_str))
+                                .and_then(|id| id.as_string()).unwrap_or("");
+    if version.len() == 0 {
+        version = value
+                    .as_dictionary()
+                    .and_then(|dict| dict.get(version_key_str))
+                    .and_then(|id| id.as_string()).unwrap_or("");
+    }
+    let feed_url_option = value
+                    .as_dictionary()
+                    .and_then(|dict| dict.get(feed_url_key))
+                    .and_then(|id| id.as_string());
+    let feed_url = match feed_url_option {
+        Some(string) => Some(string.to_string()),
+        None => None
+    };
+    PlistInfo {version: version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 获取配置信息
+////////////////////////////////////////////////////////////////////////////////
+
+/// 获取配置信息
+/// 
+/// - 配置文件，使用 `bundle id` 确定相应的应用，两种使用场景
+/// - 1. 忽略应用，比如企业证书分发的应用，还有无法通过应用商店、Sparkle方式、HomeBrew-Casks 查询到应用版本信息的应用，或者不想检查更新的应用；
+/// - 2. HomeBrew-Casks 检测时的别名，大部分应用需要配置
+fn get_config() -> Ini {
+    let mut path = dirs::home_dir().expect("未能定位到用户目录");
+    path.push(".config/appcu/config.ini");
+    // println!("{:?}", &path);
+    let conf = Ini::load_from_file(path).expect("没有找到配置文件");
+    return conf;
+}
+
+/// 获取别名配置
+fn get_alias_config() -> Properties {
+    let conf = get_config();
+    let section = conf.section(Some("alias")).expect("配置文件解析错误");
+    section.to_owned()
+}
+
+/// 获取忽略配置
+fn get_ignore_config() -> Properties {
+    let conf = get_config();
+    let section = conf.section(Some("ignore")).expect("配置文件解析错误");
+    section.to_owned()
+}
+
+/// 查询是否是忽略应用
+fn check_is_ignore(bundle_id: &str) -> bool {
+    lazy_static! {
+        static ref PROPERTIES: Properties = get_ignore_config();
+    }
+    let ignore_str: &str = PROPERTIES.get("bundleId").unwrap_or_default();
+    let ignores: Vec<&str> = ignore_str.split(",").into_iter().map(|item| item.trim()).collect();
+    let ret = ignores.contains(&bundle_id);
+    return ret
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 网络请求
+////////////////////////////////////////////////////////////////////////////////
+
+/// 查询 HomeBrew-Casks 内的版本信息
+/// 
+/// 读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内的响应应用文件
+#[tokio::main]
+async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
+    lazy_static! {
+        static ref PROPERTIES: Properties = get_alias_config();
+    }
+    let dealed_app_name = app_name.to_lowercase().replace(" ", "-");
+    // println!("{}: {:?}", bundle_id, PROPERTIES.get(bundle_id));
+    let file_name = match PROPERTIES.get(bundle_id) {
+        Some(alias_name) => alias_name,
+        None => &dealed_app_name
+    };
+    if let Ok(resp) = reqwest::get(format!("https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/{}.rb", file_name)).await {
+        if let Ok(text) = resp.text().await {
+            let result = extract_rb_file(&text);
+            let homepage = extract_rb_file_for_version(&text);
+            if let Some(version) = result.last() {
+                let temp: Vec<&str> = version.split("\"").collect();
+                let version_str = temp.get(1).unwrap_or(&"").to_string();
+                let temp1: Vec<&str> = version_str.split(",").collect();
+                let version =  temp1.get(0).unwrap_or(&"").to_string();
+                return RemoteInfo {
+                    version: version,
+                    update_page_url: homepage
+                };
+            }
+        }
+    }
+    RemoteInfo {
+        version: "-1".to_string(),
+        update_page_url: String::new()
+    }
+}
+
+/// 通过 `Sparkle` xml 读取应用版本信息
+#[tokio::main]
+async fn sparkle_app_check(feed_url: &str) -> RemoteInfo {
+    if let Ok(resp) = reqwest::get(feed_url).await {
+        if let Ok(text) = resp.text().await {
+            let result = extract_sparkle_version(&text);
+            if result.len() > 0 {
+                let version = result.last().unwrap();
+                let update_page_url = extract_sparkle_url_for_version(&text, version);
+                return RemoteInfo {
+                    version: version.to_string(),
+                    update_page_url: update_page_url.to_string()
+                };
+            }
+        }
+    }
+    RemoteInfo {
+        version: "-1".to_string(),
+        update_page_url: String::new()
+    }
+}
+
+/// 通过 itunes api 查询应用信息
+#[tokio::main]
+async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<String> {
+    if let Ok(resp) = reqwest::get(format!("https://itunes.apple.com/{}/lookup?bundleId={}", area_code, bundle_id)).await {
+        if let Ok(text) = resp.text().await {
+            let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let result_count = json_value.get("resultCount").unwrap().as_u64().unwrap_or_default();
+            if result_count != 0 {
+                let results = json_value.get("results").unwrap();
+                let version = results.get(0).unwrap().get("version").unwrap().to_string().replace("\"", "");
+                return Some(version);
+            } else {
+                return None;
+            }
+        }
+    }
+    return Some("-1".to_string());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 正则提取版本号
+////////////////////////////////////////////////////////////////////////////////
+
+/// 通过正则读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内对应 `Ruby` 文件的版本信息
+fn extract_rb_file(text: &str) -> Vec<&str> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"version\s*"(\d+(:?\.\d+)+)"#).unwrap();
+    }
+    // RE.find(text).map(|mat| mat.as_str())
+    let result: Vec<&str> =RE.find_iter(text).map(|mat| mat.as_str()).collect();
+    sort_versions(result)
+}
+
+/// 通过正则读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内对应 `Ruby` 文件的主页信息
+fn extract_rb_file_for_version(text: &str) -> String {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"url "(.+)""#).unwrap();
+    }
+    // RE.find(text).map(|mat| mat.as_str())
+    RE.find(text).map(|mat| mat.as_str()).unwrap_or_default().to_string()
+}
+
+/// 通过正则读取 `Sparkle` xml 文件内的版本信息
+fn extract_sparkle_version(text: &str) -> Vec<&str> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"sparkle:(shortVersionString|version)(.{1,3})((\d|\.)+)"#).unwrap();
+    }
+    let result: Vec<&str> = RE.find_iter(text).map(|mat| mat.as_str()).into_iter().filter(|item| {
+        item.contains(".")
+    }).map(|item| {
+        if item.contains("\"") {
+            let temp: Vec<&str> = item.split("\"").collect();
+            temp[1]
+        } else {
+            let temp: Vec<&str> = item.split(">").collect();
+            temp[1]
+        }
+    }).collect();
+    sort_versions(result)
+    // println!("{:?}", result);
+}
+
+/// 通过正则读取 `Sparkle` xml 文件内的应用下载地址信息
+fn extract_sparkle_url_for_version(text: &str, version: &str) -> String {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"http(.+)(\.zip|\.dmg|\.zip|\.app)"#).unwrap();
+    }
+    // RE.find(text).map(|mat| mat.as_str())
+    let results: Vec<&str> = RE.find_iter(text).map(|mat| mat.as_str()).collect();
+    if let Some(result) = results.iter().find(|item| item.contains(version)) {
+        result.to_string()
+    } else {
+        if results.len() > 0 {
+            results[0].to_string()
+        } else {
+            String::new()
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 版本号排序
+////////////////////////////////////////////////////////////////////////////////
+
+/// 版本号排序
+fn sort_versions(mut versions: Vec<&str>) -> Vec<&str> {
+    versions.sort_by(|a, b| {
+        cmp_version(a, b)
+    });
+    // println!("{:?}", result);
+    versions
+}
+
+/// 版本好比对
+fn cmp_version(a: &str, b: &str) -> cmp::Ordering {
+    let arr1: Vec<&str> = a.split(".").collect();
+    let arr2: Vec<&str> = b.split(".").collect();
+    let length = cmp::min(arr1.len(), arr2.len());
+    for i in 0..length {
+        let num1: usize = arr1.get(i).unwrap_or(&"0").parse().unwrap_or(0);
+        let num2: usize = arr2.get(i).unwrap_or(&"0").parse().unwrap_or(0);
+        let re = num1.cmp(&num2);
+        if re.is_eq() == false {
+            return re;
+        }
+    }
+    return cmp::Ordering::Equal;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 结构体和枚举
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug)]
+struct AppInfo {
+    name: String,
+    version: String,
+    check_update_type: CheckUpType,
+}
+
+#[derive(Debug)]
+enum CheckUpType {
+    MAS(String),
+    // iOS(String),
+    Sparkle(String),
+    HomeBrew {app_name: String, bundle_id: String}
+}
+
+struct PlistInfo {
+    version: String, 
+    bundle_id: String,
+    feed_url: Option<String>
+}
+
+struct RemoteInfo {
+    version: String,
+    update_page_url: String
+}

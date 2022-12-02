@@ -1,0 +1,18 @@
+[package]
+name = "appcu"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+plist = "1.3.1"
+reqwest = { version = "0.11.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+lazy_static = "*"
+regex = "*"
+rust-ini = "*"
+dirs = "*"
+threadpool = "1.0"
