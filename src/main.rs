@@ -69,7 +69,7 @@ fn check_update(app_info: AppInfo) {
             break;
         }
     }
-    if remote_info.version.len() == 0 {
+    if remote_info.version.is_empty() {
         println!("=====");
         println!("{}", app_info.name);
         println!("{:?}", app_info.check_update_type);
@@ -100,7 +100,7 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
     let path = entry.path();
     let app_name = path.file_name().unwrap_or_default();
     let app_name_str = app_name.to_str().unwrap_or_default();
-    if !app_name_str.starts_with(".") && app_name_str.ends_with(".app") {
+    if !app_name_str.starts_with('.') && app_name_str.ends_with(".app") {
         let content_path = &path.join("Contents");
         let receipt_path = &content_path.join("_MASReceipt");
         let wrapper_path = &path.join("Wrapper/iTunesMetadata.plist");
@@ -115,7 +115,7 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
             let cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
             let app_info = AppInfo {
                 name: name_str.to_string(),
-                version: plist_info.version.to_string(),
+                version: plist_info.version,
                 check_update_type: cu_type
             };
             return Some(app_info);
@@ -128,22 +128,22 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
             if receipt_path.exists() {
                 cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
             } else if let Some(feed_url) = plist_info.feed_url {
-                cu_type = CheckUpType::Sparkle(feed_url.to_string());
+                cu_type = CheckUpType::Sparkle(feed_url);
             } else {
                 cu_type = CheckUpType::HomeBrew {
                     app_name: name_str.to_string(),
-                    bundle_id: plist_info.bundle_id.replace(":", "").to_string()
+                    bundle_id: plist_info.bundle_id.replace(':', "")
                 };
             }
             let app_info = AppInfo {
                 name: name_str.to_string(), 
                 version: plist_info.version.to_string(), 
-                check_update_type: cu_type.into()
+                check_update_type: cu_type
             };
             return Some(app_info);
         }
     }
-    return None;
+    None
 }
 
 /// TODO: 通过配置文件配置备选区域代码
@@ -157,7 +157,7 @@ fn area_check(bundle_id: &str) -> RemoteInfo {
     if let Some(remote_info) = remote_info_opt1 {
         return remote_info;
     }
-    return RemoteInfo {version: String::new(), update_page_url: "".to_string()};
+    RemoteInfo {version: String::new(), update_page_url: "".to_string()}
 }
 
 /// 从 `Info.plist` 文件中读取有用信息
@@ -166,7 +166,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     let mut version_key_str = "CFBundleVersion";
     let mut bundle_id_key_str = "CFBundleIdentifier";
     let feed_url_key = "SUFeedURL";
-    if plist_path.ends_with("Info.plist") == false {
+    if !plist_path.ends_with("Info.plist") {
         short_version_key_str = "bundleShortVersionString";
         version_key_str = "bundleShortVersionString";
         bundle_id_key_str = "softwareVersionBundleId";
@@ -176,7 +176,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
                             .as_dictionary()
                             .and_then(|dict| dict.get(bundle_id_key_str))
                             .and_then(|id| id.as_string()).unwrap_or("");
-    if bundle_id.len() == 0 {
+    if bundle_id.is_empty() {
         let info_plist_path = plist_path.parent().unwrap().parent().unwrap().join("WrappedBundle/Info.plist");
         return read_plist_info(&info_plist_path);
     }
@@ -184,7 +184,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
                                 .as_dictionary()
                                 .and_then(|dict| dict.get(short_version_key_str))
                                 .and_then(|id| id.as_string()).unwrap_or("");
-    if version.len() == 0 {
+    if version.is_empty() {
         version = value
                     .as_dictionary()
                     .and_then(|dict| dict.get(version_key_str))
@@ -194,10 +194,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
                     .as_dictionary()
                     .and_then(|dict| dict.get(feed_url_key))
                     .and_then(|id| id.as_string());
-    let feed_url = match feed_url_option {
-        Some(string) => Some(string.to_string()),
-        None => None
-    };
+    let feed_url = feed_url_option.map(|string| string.to_string());
     InfoPlistInfo {version: version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
 }
 
@@ -216,7 +213,7 @@ fn get_config() -> yaml::Yaml {
     let content = fs::read_to_string(path).expect("读取配置文件时发生错误");
     let configs = yaml_rust::YamlLoader::load_from_str(&content).expect("解析配置文件时发生错误");
     let config = configs.get(0).expect("解析配置文件时发生错误");
-    return config.to_owned();
+    config.to_owned()
 }
 
 /// 获取别名配置
@@ -239,8 +236,8 @@ fn check_is_ignore(bundle_id: &str) -> bool {
     let ignores: Vec<&str> = arr.iter().map(|item| {
         item.as_str().unwrap_or("").trim()
     }).collect();
-    let ret = ignores.contains(&bundle_id);
-    return ret
+    
+    ignores.contains(&bundle_id)
 }
 /// 获取系统版本
 fn get_system_version() -> String {
@@ -256,7 +253,7 @@ fn get_system_version() -> String {
     } else if product_version.starts_with("11") {
         return "arm64_big_sur".to_string();
     }
-    return "".to_string();
+    "".to_string()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -268,7 +265,7 @@ fn get_system_version() -> String {
 /// 读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内的响应应用文件
 #[tokio::main]
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
-    let dealed_app_name = app_name.to_lowercase().replace(" ", "-");
+    let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
     // println!("{}: {:?}", bundle_id, PROPERTIES.get(bundle_id));
     let file_name = match ALIAS[bundle_id].as_str() {
         Some(alias_name) => alias_name,
@@ -277,25 +274,23 @@ async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     if let Ok(resp) = reqwest::get(format!("https://formulae.brew.sh/api/cask/{}.json", file_name)).await {
         if let Ok(text) = resp.text().await {
             let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let version_arr: Vec<&str> = json_value.get("version").unwrap().as_str().unwrap().split(",").collect();
-            let version: &str = version_arr.get(0).unwrap_or(&"");
+            let version_arr: Vec<&str> = json_value.get("version").unwrap().as_str().unwrap().split(',').collect();
+            let version: &str = version_arr.first().unwrap_or(&"");
             let arch_str = std::env::consts::ARCH;
             let mut url = json_value.get("url").unwrap().as_str().unwrap_or_default().to_string();
-            if SYSTEM_NAME.len() > 0 {
-                if arch_str == "aarch64" || arch_str == "arm" {
-                    if let Some(variations) = json_value.get("variations") {
-                        if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
-                            if let Some(url_value) = arm64_ventura.get("url") {
-                                let url_temp = url_value.as_str().unwrap_or_default().to_string();
-                                url = url_temp;
-                            }
+            if SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
+                if let Some(variations) = json_value.get("variations") {
+                    if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
+                        if let Some(url_value) = arm64_ventura.get("url") {
+                            let url_temp = url_value.as_str().unwrap_or_default().to_string();
+                            url = url_temp;
                         }
                     }
                 }
             }
             return RemoteInfo {
                 version: version.to_string(),
-                update_page_url: url.to_string()
+                update_page_url: url
             };
         }
     }
@@ -315,32 +310,32 @@ async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
                     if let Some(a_enclosure) = a.enclosure() {
                         if let Some(b_enclosure) = b.enclosure() {
                             let mut a_version = a_enclosure.version.as_str();
-                            if !a_version.contains(".") {
-                                a_version = &a_enclosure.short_version.as_str();
+                            if !a_version.contains('.') {
+                                a_version = a_enclosure.short_version.as_str();
                             }
-                            if a_version.len() == 0 {
+                            if a_version.is_empty() {
                                 a_version = a.title().unwrap_or_default();
                             }
                             let mut b_version = b_enclosure.version.as_str();
-                            if !b_version.contains(".") {
-                                b_version = &b_enclosure.short_version.as_str();
+                            if !b_version.contains('.') {
+                                b_version = b_enclosure.short_version.as_str();
                             }
-                            if b_version.len() == 0 {
+                            if b_version.is_empty() {
                                 b_version = b.title().unwrap_or_default();
                             }
-                            return cmp_version(&a_version, &b_version, true);
+                            return cmp_version(a_version, b_version, true);
                         }
                     }
-                    return std::cmp::Ordering::Equal;
+                    std::cmp::Ordering::Equal
                 });
                 // println!("{:?}", &items);
                 if let Some(item) = items.last() {
                     if let Some(enclosure) = item.enclosure() {
                         let mut version = enclosure.version.as_str();
-                        if !version.contains(".") {
+                        if !version.contains('.') {
                             version = &enclosure.short_version;
                         }
-                        if version.len() == 0 {
+                        if version.is_empty() {
                             version = item.title().unwrap_or_default();
                         }
                         let result = RemoteInfo {
@@ -368,8 +363,8 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
             let result_count = json_value.get("resultCount").unwrap().as_u64().unwrap_or_default();
             if result_count != 0 {
                 let results = json_value.get("results").unwrap();
-                let version = results.get(0).unwrap().get("version").unwrap().to_string().replace("\"", "");
-                let update_page_url = results.get(0).unwrap().get("trackViewUrl").unwrap().to_string().replace("\"", "");
+                let version = results.get(0).unwrap().get("version").unwrap().to_string().replace('\"', "");
+                let update_page_url = results.get(0).unwrap().get("trackViewUrl").unwrap().to_string().replace('\"', "");
                 return Some(RemoteInfo {
                     version,
                     update_page_url
@@ -379,10 +374,10 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
             }
         }
     }
-    return Some(RemoteInfo {
+    Some(RemoteInfo {
         version: "-1".to_string(),
         update_page_url: "".to_string()
-    });
+    })
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -392,30 +387,30 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
 /// 版本号比对
 fn cmp_version(a: &str, b: &str, compare_len: bool) -> cmp::Ordering {
     let mut a_version_str = a;
-    if a.contains(" ") {
-        let temp: Vec<&str> = a.split(" ").collect();
-        a_version_str = temp.get(0).unwrap_or(&"");
+    if a.contains(' ') {
+        let temp: Vec<&str> = a.split(' ').collect();
+        a_version_str = temp.first().unwrap_or(&"");
     }
     let mut b_version_str = b;
-    if b.contains(" ") {
-        let temp: Vec<&str> = b.split(" ").collect();
-        b_version_str = temp.get(0).unwrap_or(&"");
+    if b.contains(' ') {
+        let temp: Vec<&str> = b.split(' ').collect();
+        b_version_str = temp.first().unwrap_or(&"");
     }
-    let arr1: Vec<&str> = a_version_str.split(".").collect();
-    let arr2: Vec<&str> = b_version_str.split(".").collect();
+    let arr1: Vec<&str> = a_version_str.split('.').collect();
+    let arr2: Vec<&str> = b_version_str.split('.').collect();
     let length = cmp::min(arr1.len(), arr2.len());
     for i in 0..length {
         let num1: usize = arr1.get(i).unwrap_or(&"0").parse().unwrap_or(0);
         let num2: usize = arr2.get(i).unwrap_or(&"0").parse().unwrap_or(0);
         let re = num1.cmp(&num2);
-        if re.is_eq() == false {
+        if !re.is_eq() {
             return re;
         }
     }
     if compare_len {
-        return arr1.len().cmp(&arr2.len());
+        arr1.len().cmp(&arr2.len())
     } else {
-        return cmp::Ordering::Equal;
+        cmp::Ordering::Equal
     }
 }
 
