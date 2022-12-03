@@ -2,10 +2,15 @@ use core::str;
 use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp};
 use plist::Value;
 use lazy_static::lazy_static;
-use regex::Regex;
 use ini::{Ini, Properties};
 use threadpool::ThreadPool;
 use rss::Channel;
+
+lazy_static! {
+    static ref IGNORES: Properties = get_ignore_config();
+    static ref ALIAS: Properties = get_alias_config();
+    static ref SYSTEM_NAME: String = get_system_version();
+}
 
 fn main() {
     let apps_path = Path::new("/Applications");
@@ -34,8 +39,8 @@ fn main() {
 
     // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
     // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
-    // let version = homebrew_check("parallels desktop", "com.parallels.desktop.console");
-    // println!("{}", version);
+    // let remote_info = homebrew_check("parallels desktop", "com.parallels.desktop.console");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
     // let remote_info = sparkle_feed("https://raw.githubusercontent.com/xjbeta/AppUpdaterAppcasts/master/Aria2D/Appcast.xml");
     // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
 }
@@ -222,13 +227,26 @@ fn get_ignore_config() -> Properties {
 
 /// 查询是否是忽略应用
 fn check_is_ignore(bundle_id: &str) -> bool {
-    lazy_static! {
-        static ref PROPERTIES: Properties = get_ignore_config();
-    }
-    let ignore_str: &str = PROPERTIES.get("bundleId").unwrap_or_default();
+    let ignore_str: &str = IGNORES.get("bundleId").unwrap_or_default();
     let ignores: Vec<&str> = ignore_str.split(",").into_iter().map(|item| item.trim()).collect();
     let ret = ignores.contains(&bundle_id);
     return ret
+}
+/// 获取系统版本
+fn get_system_version() -> String {
+    let info = Value::from_file("/System/Library/CoreServices/SystemVersion.plist").expect("/System/Library/CoreServices/SystemVersion.plist 不存在");
+    let product_version = info
+                                .as_dictionary()
+                                .and_then(|dict| dict.get("ProductVersion"))
+                                .and_then(|id| id.as_string()).unwrap_or("");
+    if product_version.starts_with("13") {
+        return "arm64_ventura".to_string();
+    } else if product_version.starts_with("12") {
+        return "arm64_monterey".to_string();
+    } else if product_version.starts_with("11") {
+        return "arm64_big_sur".to_string();
+    }
+    return "".to_string();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,29 +258,35 @@ fn check_is_ignore(bundle_id: &str) -> bool {
 /// 读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内的响应应用文件
 #[tokio::main]
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
-    lazy_static! {
-        static ref PROPERTIES: Properties = get_alias_config();
-    }
     let dealed_app_name = app_name.to_lowercase().replace(" ", "-");
     // println!("{}: {:?}", bundle_id, PROPERTIES.get(bundle_id));
-    let file_name = match PROPERTIES.get(bundle_id) {
+    let file_name = match ALIAS.get(bundle_id) {
         Some(alias_name) => alias_name,
         None => &dealed_app_name
     };
-    if let Ok(resp) = reqwest::get(format!("https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/{}.rb", file_name)).await {
+    if let Ok(resp) = reqwest::get(format!("https://formulae.brew.sh/api/cask/{}.json", file_name)).await {
         if let Ok(text) = resp.text().await {
-            let result = extract_rb_file(&text);
-            let homepage = extract_rb_file_for_version(&text);
-            if let Some(version) = result.last() {
-                let temp: Vec<&str> = version.split("\"").collect();
-                let version_str = temp.get(1).unwrap_or(&"").to_string();
-                let temp1: Vec<&str> = version_str.split(",").collect();
-                let version =  temp1.get(0).unwrap_or(&"").to_string();
-                return RemoteInfo {
-                    version: version,
-                    update_page_url: homepage
-                };
+            let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let version_arr: Vec<&str> = json_value.get("version").unwrap().as_str().unwrap().split(",").collect();
+            let version: &str = version_arr.get(0).unwrap_or(&"");
+            let arch_str = std::env::consts::ARCH;
+            let mut url = json_value.get("url").unwrap().as_str().unwrap_or_default().to_string();
+            if SYSTEM_NAME.len() > 0 {
+                if arch_str == "aarch64" || arch_str == "arm" {
+                    if let Some(variations) = json_value.get("variations") {
+                        if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
+                            if let Some(url_value) = arm64_ventura.get("url") {
+                                let url_temp = url_value.as_str().unwrap_or_default().to_string();
+                                url = url_temp;
+                            }
+                        }
+                    }
+                }
             }
+            return RemoteInfo {
+                version: version.to_string(),
+                update_page_url: url.to_string()
+            };
         }
     }
     RemoteInfo {
@@ -335,8 +359,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
             if result_count != 0 {
                 let results = json_value.get("results").unwrap();
                 let version = results.get(0).unwrap().get("version").unwrap().to_string().replace("\"", "");
-                let artist_id = results.get(0).unwrap().get("artistId").unwrap().to_string();
-                let update_page_url = format!("https://apps.apple.com/app/id{}", artist_id);
+                let update_page_url = results.get(0).unwrap().get("trackViewUrl").unwrap().to_string().replace("\"", "");
                 return Some(RemoteInfo {
                     version,
                     update_page_url
@@ -353,40 +376,8 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// 正则提取版本号
-////////////////////////////////////////////////////////////////////////////////
-
-/// 通过正则读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内对应 `Ruby` 文件的版本信息
-fn extract_rb_file(text: &str) -> Vec<&str> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r#"version\s*"(\d+(:?\.\d+)+)"#).unwrap();
-    }
-    // RE.find(text).map(|mat| mat.as_str())
-    let result: Vec<&str> =RE.find_iter(text).map(|mat| mat.as_str()).collect();
-    sort_versions(result)
-}
-
-/// 通过正则读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内对应 `Ruby` 文件的主页信息
-fn extract_rb_file_for_version(text: &str) -> String {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r#"url "(.+)""#).unwrap();
-    }
-    // RE.find(text).map(|mat| mat.as_str())
-    RE.find(text).map(|mat| mat.as_str()).unwrap_or_default().to_string()
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // 版本号排序
 ////////////////////////////////////////////////////////////////////////////////
-
-/// 版本号排序
-fn sort_versions(mut versions: Vec<&str>) -> Vec<&str> {
-    versions.sort_by(|a, b| {
-        cmp_version(a, b, true)
-    });
-    // println!("{:?}", result);
-    versions
-}
 
 /// 版本号比对
 fn cmp_version(a: &str, b: &str, compare_len: bool) -> cmp::Ordering {
