@@ -9,6 +9,7 @@ use yaml_rust::yaml;
 /// TODO: 尝试使用 tui 输出
 /// TODO: 支持单应用查询
 /// TODO: 支持并行查询数量
+/// TODO: 使用 `Result` 代替链式调用中的 `unwrap`
 
 lazy_static! {
     static ref IGNORES: yaml::Yaml = get_ignore_config();
