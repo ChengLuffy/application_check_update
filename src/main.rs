@@ -2,13 +2,15 @@ use core::str;
 use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp};
 use plist::Value;
 use lazy_static::lazy_static;
-use ini::{Ini, Properties};
 use threadpool::ThreadPool;
 use rss::Channel;
+use yaml_rust::yaml;
+
+/// TODO: 尝试使用 tui 输出
 
 lazy_static! {
-    static ref IGNORES: Properties = get_ignore_config();
-    static ref ALIAS: Properties = get_alias_config();
+    static ref IGNORES: yaml::Yaml = get_ignore_config();
+    static ref ALIAS: yaml::Yaml = get_alias_config();
     static ref SYSTEM_NAME: String = get_system_version();
 }
 
@@ -140,6 +142,7 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
     return None;
 }
 
+/// TODO: 通过配置文件配置备选区域代码
 /// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
 fn area_check(bundle_id: &str) -> RemoteInfo {
     let remote_info_opt = mas_app_check("cn", bundle_id);
@@ -154,7 +157,7 @@ fn area_check(bundle_id: &str) -> RemoteInfo {
 }
 
 /// 从 `Info.plist` 文件中读取有用信息
-fn read_plist_info(plist_path: &PathBuf) -> PlistInfo {
+fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     let mut short_version_key_str = "CFBundleShortVersionString";
     let mut version_key_str = "CFBundleVersion";
     let mut bundle_id_key_str = "CFBundleIdentifier";
@@ -191,7 +194,7 @@ fn read_plist_info(plist_path: &PathBuf) -> PlistInfo {
         Some(string) => Some(string.to_string()),
         None => None
     };
-    PlistInfo {version: version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
+    InfoPlistInfo {version: version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -203,32 +206,35 @@ fn read_plist_info(plist_path: &PathBuf) -> PlistInfo {
 /// - 配置文件，使用 `bundle id` 确定相应的应用，两种使用场景
 /// - 1. 忽略应用，比如企业证书分发的应用，还有无法通过应用商店、Sparkle方式、HomeBrew-Casks 查询到应用版本信息的应用，或者不想检查更新的应用；
 /// - 2. HomeBrew-Casks 检测时的别名，大部分应用需要配置
-fn get_config() -> Ini {
+fn get_config() -> yaml::Yaml {
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
-    path.push(".config/appcu/config.ini");
-    // println!("{:?}", &path);
-    let conf = Ini::load_from_file(path).expect("没有找到配置文件");
-    return conf;
+    path.push(".config/appcu/config.yaml");
+    let content = fs::read_to_string(path).expect("读取配置文件时发生错误");
+    let configs = yaml_rust::YamlLoader::load_from_str(&content).expect("解析配置文件时发生错误");
+    let config = configs.get(0).expect("解析配置文件时发生错误");
+    return config.to_owned();
 }
 
 /// 获取别名配置
-fn get_alias_config() -> Properties {
+fn get_alias_config() -> yaml::Yaml {
     let conf = get_config();
-    let section = conf.section(Some("alias")).expect("配置文件解析错误");
+    let section = &conf["alias"];
     section.to_owned()
 }
 
 /// 获取忽略配置
-fn get_ignore_config() -> Properties {
+fn get_ignore_config() -> yaml::Yaml {
     let conf = get_config();
-    let section = conf.section(Some("ignore")).expect("配置文件解析错误");
+    let section = &conf["ignore"];
     section.to_owned()
 }
 
 /// 查询是否是忽略应用
 fn check_is_ignore(bundle_id: &str) -> bool {
-    let ignore_str: &str = IGNORES.get("bundleId").unwrap_or_default();
-    let ignores: Vec<&str> = ignore_str.split(",").into_iter().map(|item| item.trim()).collect();
+    let arr = IGNORES.as_vec().unwrap();
+    let ignores: Vec<&str> = arr.iter().map(|item| {
+        item.as_str().unwrap_or("").trim()
+    }).collect();
     let ret = ignores.contains(&bundle_id);
     return ret
 }
@@ -260,7 +266,7 @@ fn get_system_version() -> String {
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     let dealed_app_name = app_name.to_lowercase().replace(" ", "-");
     // println!("{}: {:?}", bundle_id, PROPERTIES.get(bundle_id));
-    let file_name = match ALIAS.get(bundle_id) {
+    let file_name = match ALIAS[bundle_id].as_str() {
         Some(alias_name) => alias_name,
         None => &dealed_app_name
     };
@@ -428,7 +434,7 @@ enum CheckUpType {
     HomeBrew {app_name: String, bundle_id: String}
 }
 
-struct PlistInfo {
+struct InfoPlistInfo {
     version: String, 
     bundle_id: String,
     feed_url: Option<String>

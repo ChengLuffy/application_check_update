@@ -12,7 +12,7 @@ tokio = { version = "1", features = ["full"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 lazy_static = "*"
-rust-ini = "*"
 dirs = "*"
 threadpool = "1.0"
 rss = { git = "https://github.com/ChengLuffy/rss.git" }
+yaml-rust = "0.4"
