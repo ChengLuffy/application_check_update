@@ -1,5 +1,5 @@
 use core::str;
-use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp, default, };
+use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp};
 use plist::Value;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -137,15 +137,15 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
 
 /// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
 fn area_check(bundle_id: &str) -> RemoteInfo {
-    let version = mas_app_check("cn", bundle_id);
-    if let Some(ver) = version {
-        return RemoteInfo {version: ver, update_page_url: "macappstore://".to_string()};
+    let remote_info_opt = mas_app_check("cn", bundle_id);
+    if let Some(remote_info) = remote_info_opt {
+        return remote_info;
     }
-    let version1 = mas_app_check("us", bundle_id);
-    if let Some(ver) = version1 {
-        return RemoteInfo {version: ver, update_page_url: "macappstore://".to_string()};
+    let remote_info_opt1 = mas_app_check("us", bundle_id);
+    if let Some(remote_info) = remote_info_opt1 {
+        return remote_info;
     }
-    return RemoteInfo {version: String::new(), update_page_url: "macappstore://".to_string()};
+    return RemoteInfo {version: String::new(), update_page_url: "".to_string()};
 }
 
 /// 从 `Info.plist` 文件中读取有用信息
@@ -327,7 +327,7 @@ async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
 
 /// 通过 itunes api 查询应用信息
 #[tokio::main]
-async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<String> {
+async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
     if let Ok(resp) = reqwest::get(format!("https://itunes.apple.com/{}/lookup?bundleId={}", area_code, bundle_id)).await {
         if let Ok(text) = resp.text().await {
             let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
@@ -335,13 +335,21 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<String> {
             if result_count != 0 {
                 let results = json_value.get("results").unwrap();
                 let version = results.get(0).unwrap().get("version").unwrap().to_string().replace("\"", "");
-                return Some(version);
+                let artist_id = results.get(0).unwrap().get("artistId").unwrap().to_string();
+                let update_page_url = format!("https://apps.apple.com/app/id{}", artist_id);
+                return Some(RemoteInfo {
+                    version,
+                    update_page_url
+                });
             } else {
                 return None;
             }
         }
     }
-    return Some("-1".to_string());
+    return Some(RemoteInfo {
+        version: "-1".to_string(),
+        update_page_url: "".to_string()
+    });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -437,5 +445,5 @@ struct PlistInfo {
 
 struct RemoteInfo {
     version: String,
-    update_page_url: String
+    update_page_url: String,
 }
