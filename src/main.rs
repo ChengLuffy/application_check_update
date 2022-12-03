@@ -32,9 +32,8 @@ fn main() {
                     //     continue;
                     // }
                     let app_info = check_app_info(&path);
-                    match app_info {
-                        Some(info) => check_update(info),
-                        None => () // println!("{:?} 无法解析应用信息", &path)
+                    if let Some(info) = app_info {
+                        check_update(info);
                     }
                 },
                 Err(error) => println!("{:?}", error)
@@ -57,7 +56,7 @@ fn check_update(app_info: AppInfo) {
     let mut remote_info: RemoteInfo;
     loop {
         remote_info = match check_update_type {
-            CheckUpType::MAS(bundle_id) =>  area_check(bundle_id), 
+            CheckUpType::Mas(bundle_id) =>  area_check(bundle_id), 
             CheckUpType::Sparkle(feed_url) => sparkle_feed(feed_url),
             CheckUpType::HomeBrew {app_name, bundle_id} => homebrew_check(app_name, bundle_id)
             // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
@@ -112,7 +111,7 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
             if check_is_ignore(&plist_info.bundle_id) {
                 return None;
             }
-            let cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
+            let cu_type = CheckUpType::Mas(plist_info.bundle_id.to_string());
             let app_info = AppInfo {
                 name: name_str.to_string(),
                 version: plist_info.version,
@@ -126,7 +125,7 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
             }
             let cu_type: CheckUpType;
             if receipt_path.exists() {
-                cu_type = CheckUpType::MAS(plist_info.bundle_id.to_string());
+                cu_type = CheckUpType::Mas(plist_info.bundle_id.to_string());
             } else if let Some(feed_url) = plist_info.feed_url {
                 cu_type = CheckUpType::Sparkle(feed_url);
             } else {
@@ -233,11 +232,10 @@ fn get_ignore_config() -> yaml::Yaml {
 /// 查询是否是忽略应用
 fn check_is_ignore(bundle_id: &str) -> bool {
     let arr = IGNORES.as_vec().unwrap();
-    let ignores: Vec<&str> = arr.iter().map(|item| {
+    // ignores.contains(&bundle_id)
+    arr.iter().map(|item| {
         item.as_str().unwrap_or("").trim()
-    }).collect();
-    
-    ignores.contains(&bundle_id)
+    }).any(|x| x == bundle_id)
 }
 /// 获取系统版本
 fn get_system_version() -> String {
@@ -427,7 +425,7 @@ struct AppInfo {
 
 #[derive(Debug)]
 enum CheckUpType {
-    MAS(String),
+    Mas(String),
     // iOS(String),
     Sparkle(String),
     HomeBrew {app_name: String, bundle_id: String}
