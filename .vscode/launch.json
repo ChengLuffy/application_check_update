@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": [],
+      "args": ["/Applications/ServerCat.app"],
       "cwd": "${workspaceFolder}"
     },
     {

@@ -1,11 +1,13 @@
 use core::str;
-use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp};
+use std::{fs, path::{Path, PathBuf}, cmp};
 use plist::Value;
 use lazy_static::lazy_static;
 use skyscraper::html;
 use threadpool::ThreadPool;
 use rss::Channel;
 use yaml_rust::yaml;
+use std::ffi::OsString;
+use clap::Command;
 
 lazy_static! {
     static ref IGNORES: Vec<String> = get_ignore_config();
@@ -16,8 +18,53 @@ lazy_static! {
 }
 
 /// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
-/// TODO: 支持单应用查询
+/// TODO: generate_config 生成配置文件
+/// TODO: alias 命令
+/// TODO: ignore 命令
 fn main() {
+    let command = Command::new("appcu")
+                            .name("appcu")
+                            .about("macOS 应用检查更新")
+                            .allow_external_subcommands(true)
+                            .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
+                            .version("0.1.0");
+    let args = command.get_matches();
+    match args.subcommand() {
+        Some((external, ext_m)) => {
+            let ext_args: Vec<_> = ext_m.get_many::<OsString>("").unwrap_or_default().collect();
+            let mut temps: Vec<&str> = ext_args.into_iter().map(|x| x.to_str().unwrap_or_default()).collect();
+            let mut results = vec![external];
+            results.append(&mut temps);
+            // println!("ext_args: {:?}", results);
+            if results.is_empty() {
+                check_all()
+            } else {
+                println!("results: {:?}", results);
+                check_some(results)
+            }
+        },
+        _ => {},
+    };
+
+    // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
+    // let remote_info = homebrew_check("parallels desktop", "com.parallels.desktop.console");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
+    // let remote_info = sparkle_feed("https://raw.githubusercontent.com/xjbeta/AppUpdaterAppcasts/master/Aria2D/Appcast.xml");
+    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
+}
+
+fn check_some(paths: Vec<&str>) {
+    for item in paths {
+        let path = Path::new(item);
+        let buf = path.to_path_buf();
+        if let Some(app_info) = check_app_info(&buf) {
+            check_update(app_info)
+        }
+    }
+}
+
+fn check_all() {
     let apps_path = Path::new("/Applications");
     let n_workers: usize = *THREADNUMS;
     let pool = ThreadPool::new(n_workers);
@@ -30,7 +77,7 @@ fn main() {
                     //     // println!("{:?}", path);
                     //     continue;
                     // }
-                    let app_info = check_app_info(&path);
+                    let app_info = check_app_info(&path.path());
                     if let Some(info) = app_info {
                         check_update(info);
                     }
@@ -40,13 +87,6 @@ fn main() {
         });
     }
     pool.join();
-
-    // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
-    // let remote_info = homebrew_check("parallels desktop", "com.parallels.desktop.console");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
-    // let remote_info = sparkle_feed("https://raw.githubusercontent.com/xjbeta/AppUpdaterAppcasts/master/Aria2D/Appcast.xml");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
 }
 
 /// 根据应用类型查询更新并输出
@@ -94,8 +134,8 @@ fn check_update(app_info: AppInfo) {
 /// - 包内存在 `Wrapper/iTunesMetadata.plist` 路径判断为 iOS 应用
 /// - `Info.plist` 中存在 `SUFeedURL` 字段判断为依赖 `Sparkle` 检查更新的应用
 /// - 其他应用通过 `HomeBrew-Casks` 查询版本号
-fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
-    let path = entry.path();
+fn check_app_info(entry: &PathBuf) -> Option<AppInfo> {
+    let path = entry;
     let app_name = path.file_name().unwrap_or_default();
     let app_name_str = app_name.to_str().unwrap_or_default();
     if !app_name_str.starts_with('.') && app_name_str.ends_with(".app") {
@@ -411,6 +451,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
                         }
                     }
                 }
+                println!("{}", &version);
                 return Some(RemoteInfo {
                     version,
                     update_page_url
