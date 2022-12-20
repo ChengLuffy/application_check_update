@@ -2,13 +2,10 @@ use core::str;
 use std::{fs::{self, DirEntry}, path::{Path, PathBuf}, cmp};
 use plist::Value;
 use lazy_static::lazy_static;
+use skyscraper::html;
 use threadpool::ThreadPool;
 use rss::Channel;
 use yaml_rust::yaml;
-
-/// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
-/// TODO: 支持单应用查询
-/// FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，可行性方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">*</p>
 
 lazy_static! {
     static ref IGNORES: Vec<String> = get_ignore_config();
@@ -18,6 +15,8 @@ lazy_static! {
     static ref THREADNUMS: usize = get_thread_nums();
 }
 
+/// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
+/// TODO: 支持单应用查询
 fn main() {
     let apps_path = Path::new("/Applications");
     let n_workers: usize = *THREADNUMS;
@@ -27,8 +26,8 @@ fn main() {
         pool.execute(move|| {
             match item {
                 Ok(path) => {
-                    // if path.path().file_name().unwrap_or_default().to_str() != Some("饿了么.app") {
-                    //     println!("{:?}", path);
+                    // if path.path().file_name().unwrap_or_default().to_str() != Some("ServerCat.app") {
+                    //     // println!("{:?}", path);
                     //     continue;
                     // }
                     let app_info = check_app_info(&path);
@@ -57,7 +56,7 @@ fn check_update(app_info: AppInfo) {
     loop {
         remote_info = match check_update_type {
             CheckUpType::Mas(bundle_id) =>  area_check(bundle_id), 
-            CheckUpType::Sparkle(feed_url) => sparkle_feed(feed_url),
+            CheckUpType::Sparkle(feed_url) => sparkle_feed_check(feed_url),
             CheckUpType::HomeBrew {app_name, bundle_id} => homebrew_check(app_name, bundle_id)
             // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
         };
@@ -310,7 +309,7 @@ async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
 }
 
 #[tokio::main]
-async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
+async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
     if let Ok(content) = reqwest::get(feed_url).await {
         if let Ok(bytes_content) = content.bytes().await {
             if let Ok(channel) = Channel::read_from(&bytes_content[..]) {
@@ -384,8 +383,34 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
             let result_count = json_value.get("resultCount").unwrap().as_u64().unwrap_or_default();
             if result_count != 0 {
                 let results = json_value.get("results").unwrap();
-                let version = results.get(0).unwrap().get("version").unwrap().to_string().replace('\"', "");
-                let update_page_url = results.get(0).unwrap().get("trackViewUrl").unwrap().to_string().replace('\"', "");
+                let item = results.get(0).unwrap();
+                let update_page_url = item.get("trackViewUrl").unwrap().to_string().replace('\"', "");
+                let mut version = item.get("version").unwrap().to_string().replace('\"', "");
+                // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
+                // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的、loading 时的文本
+                if let Some(supported_devices) = item.get("supportedDevices") {
+                    if let Some(supported_devices_arr) = supported_devices.as_array() {
+                        if supported_devices_arr.iter().any(|x| x.as_str() == Some("MacDesktop-MacDesktop")) {
+                            let client = reqwest::Client::new();
+                            if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
+                                if let Ok(text) = resp.text().await {
+                                    if let Ok(document) = html::parse(&text) {
+                                        let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
+                                        if let Ok(nodes) = xpath.apply(&document) {
+                                            if let Some(doc_node) = nodes.get(0) {
+                                                if let Some(text) = doc_node.get_text(&document) {
+                                                    if let Some(last) = text.split(" ").last() {
+                                                        version = last.to_string();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 return Some(RemoteInfo {
                     version,
                     update_page_url

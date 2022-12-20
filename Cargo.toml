@@ -16,3 +16,4 @@ dirs = "*"
 threadpool = "1.0"
 rss = { git = "https://github.com/ChengLuffy/rss.git" }
 yaml-rust = "0.4"
+skyscraper = "0.4.0"    # XPath for HTML web scraping

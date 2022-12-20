@@ -13,6 +13,7 @@ dependencies = [
  "rss",
  "serde",
  "serde_json",
+ "skyscraper",
  "threadpool",
  "tokio",
  "yaml-rust",
@@ -422,6 +423,12 @@ dependencies = [
  "autocfg",
  "hashbrown",
 ]
+
+[[package]]
+name = "indextree"
+version = "4.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "497f036ac2fae75c34224648a77802e5dd4e9cfb56f4713ab6b12b7160a0523b"
 
 [[package]]
 name = "instant"
@@ -894,6 +901,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e51e73328dc4ac0c7ccbda3a494dfa03df1de2f46018127f60c693f2648455b0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "skyscraper"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4453cda1eea82c196638d694465389fd999471a59ddffbafcb922bd238c8b19"
+dependencies = [
+ "indexmap",
+ "indextree",
+ "lazy_static",
+ "thiserror",
 ]
 
 [[package]]
