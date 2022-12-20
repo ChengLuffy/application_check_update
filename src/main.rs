@@ -6,21 +6,21 @@ use threadpool::ThreadPool;
 use rss::Channel;
 use yaml_rust::yaml;
 
-/// TODO: 尝试使用 tui 输出
+/// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
 /// TODO: 支持单应用查询
-/// TODO: 支持并行查询数量
-/// TODO: 使用 `Result` 代替链式调用中的 `unwrap`
-/// TODO: 添加平台限制
+/// FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，可行性方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">*</p>
 
 lazy_static! {
-    static ref IGNORES: yaml::Yaml = get_ignore_config();
+    static ref IGNORES: Vec<String> = get_ignore_config();
     static ref ALIAS: yaml::Yaml = get_alias_config();
+    static ref MASAREAS: Vec<String> = get_mas_areas();
     static ref SYSTEM_NAME: String = get_system_version();
+    static ref THREADNUMS: usize = get_thread_nums();
 }
 
 fn main() {
     let apps_path = Path::new("/Applications");
-    let n_workers = 5;
+    let n_workers: usize = *THREADNUMS;
     let pool = ThreadPool::new(n_workers);
     for item in fs::read_dir(apps_path).unwrap() {
         // 直接使用 thread::spawn 会产生 `Too many open files` 的问题，也不知道这是不是合适的解决方法
@@ -145,20 +145,6 @@ fn check_app_info(entry: &DirEntry) -> Option<AppInfo> {
     None
 }
 
-/// TODO: 通过配置文件配置备选区域代码
-/// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
-fn area_check(bundle_id: &str) -> RemoteInfo {
-    let remote_info_opt = mas_app_check("cn", bundle_id);
-    if let Some(remote_info) = remote_info_opt {
-        return remote_info;
-    }
-    let remote_info_opt1 = mas_app_check("us", bundle_id);
-    if let Some(remote_info) = remote_info_opt1 {
-        return remote_info;
-    }
-    RemoteInfo {version: String::new(), update_page_url: "".to_string()}
-}
-
 /// 从 `Info.plist` 文件中读取有用信息
 fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     let mut short_version_key_str = "CFBundleShortVersionString";
@@ -223,20 +209,46 @@ fn get_alias_config() -> yaml::Yaml {
 }
 
 /// 获取忽略配置
-fn get_ignore_config() -> yaml::Yaml {
+fn get_ignore_config() -> Vec<String> {
     let conf = get_config();
     let section = &conf["ignore"];
-    section.to_owned()
+    if let Some(arr) = section.as_vec() {
+        arr.iter().map(|item| {
+            item.as_str().unwrap_or("").trim().to_string()
+        }).collect()
+    } else {
+        vec![]
+    }
 }
 
 /// 查询是否是忽略应用
 fn check_is_ignore(bundle_id: &str) -> bool {
-    let arr = IGNORES.as_vec().unwrap();
-    // ignores.contains(&bundle_id)
-    arr.iter().map(|item| {
-        item.as_str().unwrap_or("").trim()
-    }).any(|x| x == bundle_id)
+    let arr = IGNORES.to_vec();
+    arr.iter().any(|x| x == &bundle_id)
 }
+
+fn get_mas_areas() -> Vec<String> {
+    let conf = get_config();
+    let section = &conf["mas_area"];
+    if let Some(arr) = section.as_vec() {
+        arr.iter().map(|item| {
+            item.as_str().unwrap_or("").trim().to_string()
+        }).collect()
+    } else {
+        vec![]
+    }
+}
+
+fn get_thread_nums() -> usize {
+    let conf = get_config();
+    let section = &conf["config"];
+    if let Some(threads_num) = section["threads_num"].as_str() {
+        return threads_num.to_string().parse().unwrap_or(5);
+    } else {
+        return 5;
+    }
+}
+
 /// 获取系统版本
 fn get_system_version() -> String {
     let info = Value::from_file("/System/Library/CoreServices/SystemVersion.plist").expect("/System/Library/CoreServices/SystemVersion.plist 不存在");
@@ -264,7 +276,6 @@ fn get_system_version() -> String {
 #[tokio::main]
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
-    // println!("{}: {:?}", bundle_id, PROPERTIES.get(bundle_id));
     let file_name = match ALIAS[bundle_id].as_str() {
         Some(alias_name) => alias_name,
         None => &dealed_app_name
@@ -326,7 +337,6 @@ async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
                     }
                     std::cmp::Ordering::Equal
                 });
-                // println!("{:?}", &items);
                 if let Some(item) = items.last() {
                     if let Some(enclosure) = item.enclosure() {
                         let mut version = enclosure.version.as_str();
@@ -350,6 +360,19 @@ async fn sparkle_feed(feed_url: &str) -> RemoteInfo {
         version: "-1".to_string(),
         update_page_url: String::new()
     }
+}
+
+/// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
+fn area_check(bundle_id: &str) -> RemoteInfo {
+    let mut mas_areas = MASAREAS.to_vec();
+    mas_areas.insert(0, "".to_string());
+    for area_code in mas_areas {
+        let remote_info_opt = mas_app_check(&area_code, bundle_id);
+        if let Some(remote_info) = remote_info_opt {
+            return remote_info;
+        }
+    }
+    RemoteInfo {version: String::new(), update_page_url: "".to_string()}
 }
 
 /// 通过 itunes api 查询应用信息
