@@ -42,13 +42,6 @@ fn main() {
     } else {
         check_all()
     }
-
-    // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
-    // let remote_info = homebrew_check("parallels desktop", "com.parallels.desktop.console");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
-    // let remote_info = sparkle_feed("https://raw.githubusercontent.com/xjbeta/AppUpdaterAppcasts/master/Aria2D/Appcast.xml");
-    // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
 }
 
 fn check_some(paths: Vec<&str>) {
