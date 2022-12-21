@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": ["/Applications/SF Symbols.app/"],
+      "args": ["/Applications/SF Symbols.app/", "/Applications/flameshot.app/", "/Applications/PlayCover.app/"],
       "cwd": "${workspaceFolder}"
     },
     {

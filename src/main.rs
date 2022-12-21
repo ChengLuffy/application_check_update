@@ -102,14 +102,18 @@ fn check_update(app_info: AppInfo) {
         println!("=====\n");
     }
     // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure，版本好也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是，homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4
-    let local_cmp_version = if remote_info.version.contains('.') && !app_info.short_version.is_empty() || !matches!(app_info.check_update_type, CheckUpType::Sparkle(_)) {
+    let local_cmp_version = if !app_info.short_version.is_empty() && !matches!(app_info.check_update_type, CheckUpType::Sparkle(_)) {
         &app_info.short_version
     } else {
-        &app_info.version
+        if remote_info.version.contains('.') && app_info.short_version.contains('.') {
+            &app_info.short_version
+        } else {
+            &app_info.version
+        }
     };
     let ordering = cmp_version(local_cmp_version, &remote_info.version, false);
-    if ordering.is_lt() {
-    // if &remote_info.version != "-2" {
+    // if ordering.is_lt() {
+    if &remote_info.version != "-2" {
         println!("=====");
         println!("{}", app_info.name);
         println!("local version {}", local_cmp_version);
