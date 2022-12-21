@@ -29,22 +29,19 @@ fn main() {
                             .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
                             .version("0.1.0");
     let args = command.get_matches();
-    match args.subcommand() {
-        Some((external, ext_m)) => {
-            let ext_args: Vec<_> = ext_m.get_many::<OsString>("").unwrap_or_default().collect();
-            let mut temps: Vec<&str> = ext_args.into_iter().map(|x| x.to_str().unwrap_or_default()).collect();
-            let mut results = vec![external];
-            results.append(&mut temps);
-            // println!("ext_args: {:?}", results);
-            if results.is_empty() {
-                check_all()
-            } else {
-                println!("results: {:?}", results);
-                check_some(results)
-            }
-        },
-        _ => {},
-    };
+    if let Some((external, ext_m)) = args.subcommand() {
+        let mut ext_args: Vec<&str> = ext_m.get_many::<OsString>("").unwrap_or_default().map(|x| x.to_str().unwrap_or_default()).collect();
+        let mut results = vec![external];
+        results.append(&mut ext_args);
+        // println!("ext_args: {:?}", results);
+        if results.is_empty() {
+            check_all()
+        } else {
+            check_some(results)
+        }
+    } else {
+        check_all()
+    }
 
     // let remote_info = sparkle_app_check("https://api.appcenter.ms/v0.1/public/sparkle/apps/1cd052f7-e118-4d13-87fb-35176f9702c1");
     // println!("{}\n{}", remote_info.update_page_url, remote_info.version);
@@ -111,16 +108,22 @@ fn check_update(app_info: AppInfo) {
         println!("=====");
         println!("{}", app_info.name);
         println!("{:?}", app_info.check_update_type);
-        println!("local version {}", app_info.version);
+        println!("local version {}", app_info.short_version);
         println!("remote version check failed");
         println!("=====\n");
     }
-    let ordering = cmp_version(&app_info.version, &remote_info.version, false);
+    // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure，版本好也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是，homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4
+    let local_cmp_version = if remote_info.version.contains('.') && !app_info.short_version.is_empty() || !matches!(app_info.check_update_type, CheckUpType::Sparkle(_)) {
+        &app_info.short_version
+    } else {
+        &app_info.version
+    };
+    let ordering = cmp_version(local_cmp_version, &remote_info.version, false);
     if ordering.is_lt() {
     // if &remote_info.version != "-2" {
         println!("=====");
         println!("{}", app_info.name);
-        println!("local version {}", app_info.version);
+        println!("local version {}", local_cmp_version);
         println!("remote version {}", remote_info.version);
         println!("{}", remote_info.update_page_url);
         println!("=====\n");
@@ -134,7 +137,7 @@ fn check_update(app_info: AppInfo) {
 /// - 包内存在 `Wrapper/iTunesMetadata.plist` 路径判断为 iOS 应用
 /// - `Info.plist` 中存在 `SUFeedURL` 字段判断为依赖 `Sparkle` 检查更新的应用
 /// - 其他应用通过 `HomeBrew-Casks` 查询版本号
-fn check_app_info(entry: &PathBuf) -> Option<AppInfo> {
+fn check_app_info(entry: &Path) -> Option<AppInfo> {
     let path = entry;
     let app_name = path.file_name().unwrap_or_default();
     let app_name_str = app_name.to_str().unwrap_or_default();
@@ -154,6 +157,7 @@ fn check_app_info(entry: &PathBuf) -> Option<AppInfo> {
             let app_info = AppInfo {
                 name: name_str.to_string(),
                 version: plist_info.version,
+                short_version: plist_info.short_version,
                 check_update_type: cu_type
             };
             return Some(app_info);
@@ -176,6 +180,7 @@ fn check_app_info(entry: &PathBuf) -> Option<AppInfo> {
             let app_info = AppInfo {
                 name: name_str.to_string(), 
                 version: plist_info.version.to_string(), 
+                short_version: plist_info.short_version.to_string(),
                 check_update_type: cu_type
             };
             return Some(app_info);
@@ -192,7 +197,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     let feed_url_key = "SUFeedURL";
     if !plist_path.ends_with("Info.plist") {
         short_version_key_str = "bundleShortVersionString";
-        version_key_str = "bundleShortVersionString";
+        version_key_str = "bundleVersion";
         bundle_id_key_str = "softwareVersionBundleId";
     }
     let value = Value::from_file(plist_path).expect("failed to read plist file");
@@ -204,22 +209,20 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         let info_plist_path = plist_path.parent().unwrap().parent().unwrap().join("WrappedBundle/Info.plist");
         return read_plist_info(&info_plist_path);
     }
-    let mut version = value
+    let version = value
+                                .as_dictionary()
+                                .and_then(|dict| dict.get(version_key_str))
+                                .and_then(|id| id.as_string()).unwrap_or("");
+    let short_version = value
                                 .as_dictionary()
                                 .and_then(|dict| dict.get(short_version_key_str))
                                 .and_then(|id| id.as_string()).unwrap_or("");
-    if version.is_empty() {
-        version = value
-                    .as_dictionary()
-                    .and_then(|dict| dict.get(version_key_str))
-                    .and_then(|id| id.as_string()).unwrap_or("");
-    }
     let feed_url_option = value
                     .as_dictionary()
                     .and_then(|dict| dict.get(feed_url_key))
                     .and_then(|id| id.as_string());
     let feed_url = feed_url_option.map(|string| string.to_string());
-    InfoPlistInfo {version: version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
+    InfoPlistInfo {version: version.to_string(), short_version: short_version.to_string(), bundle_id: bundle_id.to_string(), feed_url}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -263,7 +266,7 @@ fn get_ignore_config() -> Vec<String> {
 /// 查询是否是忽略应用
 fn check_is_ignore(bundle_id: &str) -> bool {
     let arr = IGNORES.to_vec();
-    arr.iter().any(|x| x == &bundle_id)
+    arr.iter().any(|x| x == bundle_id)
 }
 
 fn get_mas_areas() -> Vec<String> {
@@ -282,9 +285,9 @@ fn get_thread_nums() -> usize {
     let conf = get_config();
     let section = &conf["config"];
     if let Some(threads_num) = section["threads_num"].as_str() {
-        return threads_num.to_string().parse().unwrap_or(5);
+        threads_num.to_string().parse().unwrap_or(5)
     } else {
-        return 5;
+        5
     }
 }
 
@@ -354,6 +357,8 @@ async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
         if let Ok(bytes_content) = content.bytes().await {
             if let Ok(channel) = Channel::read_from(&bytes_content[..]) {
                 let mut items: Vec<rss::Item> = channel.items().into();
+                // FIXME: 有些应用例如 playcover 2.0.1 版本，应用内 Info.plist 的版本却是 2.0.0 ，但是 shortVersion 又不是所有应用都有的
+                // FIXME: xml 格式也不统一，有些把版本信息放在 enclosure 内，有些是直接是标题，有些是 item 内
                 items.sort_by(|a, b| {
                     if let Some(a_enclosure) = a.enclosure() {
                         if let Some(b_enclosure) = b.enclosure() {
@@ -377,20 +382,31 @@ async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
                     std::cmp::Ordering::Equal
                 });
                 if let Some(item) = items.last() {
-                    if let Some(enclosure) = item.enclosure() {
-                        let mut version = enclosure.version.as_str();
-                        if !version.contains('.') {
-                            version = &enclosure.short_version;
-                        }
-                        if version.is_empty() {
-                            version = item.title().unwrap_or_default();
-                        }
-                        let result = RemoteInfo {
-                            version: version.to_string(),
-                            update_page_url: enclosure.url.to_string()
-                        };
-                        return result;
+                    let mut version = item.version().unwrap_or_default();
+                    if version.is_empty() {
+                        version = item.short_version().unwrap_or_default();
                     }
+                    if version.is_empty() {
+                        if let Some(enclosure) = item.enclosure() {
+                            let mut version = enclosure.version.as_str();
+                            if !version.contains('.') {
+                                version = &enclosure.short_version;
+                            }
+                            if version.is_empty() {
+                                version = item.title().unwrap_or_default();
+                            }
+                            let result = RemoteInfo {
+                                version: version.to_string(),
+                                update_page_url: enclosure.url.to_string()
+                            };
+                            return result;
+                        }
+                    }
+                    let result = RemoteInfo {
+                        version: version.to_string(),
+                        update_page_url: item.enclosure().unwrap().url.to_string()
+                    };
+                    return result;
                 }
             }
         }
@@ -428,22 +444,17 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
                 let mut version = item.get("version").unwrap().to_string().replace('\"', "");
                 // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
                 // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的、loading 时的文本
-                if let Some(supported_devices) = item.get("supportedDevices") {
-                    if let Some(supported_devices_arr) = supported_devices.as_array() {
-                        if supported_devices_arr.iter().any(|x| x.as_str() == Some("MacDesktop-MacDesktop")) {
-                            let client = reqwest::Client::new();
-                            if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
-                                if let Ok(text) = resp.text().await {
-                                    if let Ok(document) = html::parse(&text) {
-                                        let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
-                                        if let Ok(nodes) = xpath.apply(&document) {
-                                            if let Some(doc_node) = nodes.get(0) {
-                                                if let Some(text) = doc_node.get_text(&document) {
-                                                    if let Some(last) = text.split(" ").last() {
-                                                        version = last.to_string();
-                                                    }
-                                                }
-                                            }
+                // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
+                let client = reqwest::Client::new();
+                if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
+                    if let Ok(text) = resp.text().await {
+                        if let Ok(document) = html::parse(&text) {
+                            let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
+                            if let Ok(nodes) = xpath.apply(&document) {
+                                if let Some(doc_node) = nodes.get(0) {
+                                    if let Some(text) = doc_node.get_text(&document) {
+                                        if let Some(last) = text.split(' ').last() {
+                                            version = last.to_string();
                                         }
                                     }
                                 }
@@ -451,7 +462,6 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
                         }
                     }
                 }
-                println!("{}", &version);
                 return Some(RemoteInfo {
                     version,
                     update_page_url
@@ -509,10 +519,11 @@ fn cmp_version(a: &str, b: &str, compare_len: bool) -> cmp::Ordering {
 struct AppInfo {
     name: String,
     version: String,
+    short_version: String,
     check_update_type: CheckUpType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum CheckUpType {
     Mas(String),
     // iOS(String),
@@ -522,6 +533,7 @@ enum CheckUpType {
 
 struct InfoPlistInfo {
     version: String, 
+    short_version: String,
     bundle_id: String,
     feed_url: Option<String>
 }

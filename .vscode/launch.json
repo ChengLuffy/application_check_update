@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": ["/Applications/ServerCat.app"],
+      "args": ["/Applications/SF Symbols.app/"],
       "cwd": "${workspaceFolder}"
     },
     {
