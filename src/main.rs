@@ -63,10 +63,6 @@ fn check_all() {
         pool.execute(move|| {
             match item {
                 Ok(path) => {
-                    // if path.path().file_name().unwrap_or_default().to_str() != Some("ServerCat.app") {
-                    //     // println!("{:?}", path);
-                    //     continue;
-                    // }
                     let app_info = check_app_info(&path.path());
                     if let Some(info) = app_info {
                         check_update(info);
