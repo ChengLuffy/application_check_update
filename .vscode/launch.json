@@ -7,7 +7,43 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'application_check_update'",
+      "name": "Debug executable 'appcu --help'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=appcu",
+          "--package=appcu"
+        ],
+        "filter": {
+          "name": "appcu",
+          "kind": "bin"
+        }
+      },
+      "args": ["--help"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'appcu generate_config'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=appcu",
+          "--package=appcu"
+        ],
+        "filter": {
+          "name": "appcu",
+          "kind": "bin"
+        }
+      },
+      "args": ["generate_config"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'appcu xx.app'",
       "cargo": {
         "args": [
           "build",

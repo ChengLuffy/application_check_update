@@ -18,7 +18,6 @@ lazy_static! {
 }
 
 /// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
-/// TODO: generate_config 生成配置文件
 /// TODO: alias 命令
 /// TODO: ignore 命令
 fn main() {
@@ -27,15 +26,17 @@ fn main() {
                             .about("macOS 应用检查更新")
                             .allow_external_subcommands(true)
                             .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
+                            .subcommand(Command::new("generate_config").about("生成配置文件"))
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
         let mut ext_args: Vec<&str> = ext_m.get_many::<OsString>("").unwrap_or_default().map(|x| x.to_str().unwrap_or_default()).collect();
         let mut results = vec![external];
         results.append(&mut ext_args);
-        // println!("ext_args: {:?}", results);
         if results.is_empty() {
             check_all()
+        } else if results.len() == 1 && results.contains(&"generate_config") {
+            generate_config()
         } else {
             check_some(results)
         }
@@ -44,6 +45,45 @@ fn main() {
     }
 }
 
+/// 生成配置文件
+#[tokio::main]
+async fn generate_config() {
+    if let Ok(content) = reqwest::get("https://raw.githubusercontent.com/ChengLuffy/application_check_update/master/default_config.yaml").await {
+        if let Ok(text_content) = content.text().await {
+            let mut path = dirs::home_dir().expect("未能定位到用户目录");
+            path.push(".config/appcu");
+            if !path.exists() {
+                fs::create_dir_all(&path).unwrap();
+            }
+            path.push("config.yaml");
+            if path.exists() {
+                let mut input_string = String::new();
+                println!("已经存在一份配置文件，继续运行会将现有的配置文件重命名并生成一份默认配置文件，是否继续？：(y or ...) ");
+                std::io::stdin().read_line(&mut input_string).unwrap();
+                if input_string.to_lowercase() == "y" {
+                    let start = std::time::SystemTime::now();
+                    let since_the_epoch = start
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .expect("时间戳获取失败");
+                    let ms = since_the_epoch.as_secs() as i64 * 1000i64 + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
+                    let mut new_path = dirs::home_dir().unwrap();
+                    let new_name = format!(".config/appcu/config.yaml_bk_{ms}");
+                    new_path.push(new_name);
+                    fs::rename(&path, new_path).unwrap();
+                } else {
+                    return;
+                }
+            }
+            fs::write(path, text_content).unwrap()
+        } else {
+            println!("默认配置解码失败")
+        }
+    } else {
+        println!("获取默认配置失败")
+    }
+}
+
+/// 检查指定路径下的应用
 fn check_some(paths: Vec<&str>) {
     for item in paths {
         let path = Path::new(item);
@@ -54,6 +94,7 @@ fn check_some(paths: Vec<&str>) {
     }
 }
 
+/// 检查所有应用
 fn check_all() {
     let apps_path = Path::new("/Applications");
     let n_workers: usize = *THREADNUMS;
@@ -226,9 +267,9 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
 fn get_config() -> yaml::Yaml {
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
     path.push(".config/appcu/config.yaml");
-    let content = fs::read_to_string(path).expect("读取配置文件时发生错误");
-    let configs = yaml_rust::YamlLoader::load_from_str(&content).expect("解析配置文件时发生错误");
-    let config = configs.get(0).expect("解析配置文件时发生错误");
+    let content = fs::read_to_string(path).expect("读取配置文件时发生错误，`~/.config/appcu/config.yaml` 路径下不存在配置文件，您可以使用 `appcu generate_config` 生成一份默认配置文件");
+    let configs = yaml_rust::YamlLoader::load_from_str(&content).expect("解析配置文件时发生错误，配置文件格式错误");
+    let config = configs.get(0).expect("解析配置文件时发生错误，配置文件格式错误");
     config.to_owned()
 }
 
@@ -258,6 +299,7 @@ fn check_is_ignore(bundle_id: &str) -> bool {
     arr.iter().any(|x| x == bundle_id)
 }
 
+/// 获取配置文件中备用的商店区域代码
 fn get_mas_areas() -> Vec<String> {
     let conf = get_config();
     let section = &conf["mas_area"];
@@ -270,6 +312,7 @@ fn get_mas_areas() -> Vec<String> {
     }
 }
 
+/// 获取配置文件中设置的并发查询数量
 fn get_thread_nums() -> usize {
     let conf = get_config();
     let section = &conf["config"];
