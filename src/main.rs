@@ -25,8 +25,11 @@ fn main() {
                             .about("macOS 应用检查更新")
                             .allow_external_subcommands(true)
                             .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
-                            .subcommand(Command::new("generate_config").about("生成配置文件"))
-                            .subcommand(Command::new("ignore").about("忽略对应的应用").override_usage("appcu ignore /Applications/xx.app /Applications/yy.app"))
+                            .subcommand(Command::new("generate_config")
+                                                        .about("生成配置文件"))
+                            .subcommand(Command::new("ignore")
+                                                        .about("忽略对应的应用")
+                                                        .override_usage("appcu ignore /Applications/xx.app /Applications/yy.app"))
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
@@ -37,7 +40,7 @@ fn main() {
             check_all()
         } else if results.len() == 1 && external == "generate_config" {
             generate_config()
-        } else if external.starts_with("ignore") { // FIXME: 好像这么写有问题，但还不确定怎么改
+        } else if external.starts_with("ignore ") { // FIXME: 好像这么写有问题，但还不确定怎么改
             let mut vec: Vec<&str> = external.split(' ').collect();
             vec.remove(0);
             ignore_some(vec)
@@ -157,7 +160,7 @@ fn check_update(app_info: AppInfo) {
             break;
         }
     }
-    // TODO: 完善输出
+    // TODO: 完善输出，现在 `check_update_type` 输出不够直观
     if remote_info.version.is_empty() {
         println!("=====");
         println!("{}", app_info.name);
