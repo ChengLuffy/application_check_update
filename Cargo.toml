@@ -11,10 +11,10 @@ reqwest = { version = "0.11.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9.16"
 lazy_static = "*"
 dirs = "*"
 threadpool = "1.0"
 rss = { git = "https://github.com/ChengLuffy/rss.git" }
-yaml-rust = "0.4"
 skyscraper = "0.4.0"    # XPath for HTML web scraping
 clap = { version = "4.0.29", features = ["derive"] }

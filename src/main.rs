@@ -1,17 +1,17 @@
 use core::str;
-use std::{fs, path::{Path, PathBuf}, cmp};
+use std::{fs, path::{Path, PathBuf}, cmp, collections::HashMap};
 use plist::Value;
 use lazy_static::lazy_static;
+use serde::{Serialize, Deserialize};
 use skyscraper::html;
 use threadpool::ThreadPool;
 use rss::Channel;
-use yaml_rust::yaml;
 use std::ffi::OsString;
 use clap::Command;
 
 lazy_static! {
     static ref IGNORES: Vec<String> = get_ignore_config();
-    static ref ALIAS: yaml::Yaml = get_alias_config();
+    static ref ALIAS: HashMap<String, String> = get_alias_config();
     static ref MASAREAS: Vec<String> = get_mas_areas();
     static ref SYSTEM_NAME: String = get_system_version();
     static ref THREADNUMS: usize = get_thread_nums();
@@ -19,7 +19,6 @@ lazy_static! {
 
 /// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
 /// TODO: alias 命令
-/// TODO: ignore 命令
 fn main() {
     let command = Command::new("appcu")
                             .name("appcu")
@@ -38,8 +37,10 @@ fn main() {
             check_all()
         } else if results.len() == 1 && external == "generate_config" {
             generate_config()
-        } else if external == "ignore" {
-            ignore_some(ext_args)
+        } else if external.starts_with("ignore") { // FIXME: 好像这么写有问题，但还不确定怎么改
+            let mut vec: Vec<&str> = external.split(' ').collect();
+            vec.remove(0);
+            ignore_some(vec)
         } else {
             check_some(results)
         }
@@ -48,8 +49,23 @@ fn main() {
     }
 }
 
+/// 忽略一些应用
 fn ignore_some(bundle_id_vec: Vec<&str>) {
     // 通过文件读写改变配置文件
+    let mut config = get_config();
+    for item in bundle_id_vec {
+        if let Some(app_info) = check_app_info(Path::new(item)) {
+            if !check_is_ignore(&app_info.bundle_id) {
+                config.ignore.push(app_info.bundle_id)
+            }
+        }
+    }
+    let config_content = serde_yaml::to_string(&config).expect("配置转换为文本错误");
+    // FIXME: 没有缩进感觉不对，希望这么改不会出问题
+    let fmt_content = config_content.replace("\n-", "\n  -");
+    let mut path = dirs::home_dir().expect("未能定位到用户目录");
+    path.push(".config/appcu/config.yaml");
+    fs::write(path, fmt_content).expect("写入配置文件失败");
 }
 
 /// 生成配置文件
@@ -60,7 +76,7 @@ async fn generate_config() {
             let mut path = dirs::home_dir().expect("未能定位到用户目录");
             path.push(".config/appcu");
             if !path.exists() {
-                fs::create_dir_all(&path).unwrap();
+                fs::create_dir_all(&path).expect("创建文件夹错误");
             }
             path.push("config.yaml");
             if path.exists() {
@@ -76,12 +92,12 @@ async fn generate_config() {
                     let mut new_path = dirs::home_dir().unwrap();
                     let new_name = format!(".config/appcu/config.yaml_bk_{ms}");
                     new_path.push(new_name);
-                    fs::rename(&path, new_path).unwrap();
+                    fs::rename(&path, new_path).expect("原有配置文件重命名错误");
                 } else {
                     return;
                 }
             }
-            fs::write(path, text_content).unwrap()
+            fs::write(path, text_content).expect("配置文件写入错误")
         } else {
             println!("默认配置解码失败")
         }
@@ -196,6 +212,7 @@ fn check_app_info(entry: &Path) -> Option<AppInfo> {
                 name: name_str.to_string(),
                 version: plist_info.version,
                 short_version: plist_info.short_version,
+                bundle_id: plist_info.bundle_id,
                 check_update_type: cu_type
             };
             return Some(app_info);
@@ -219,6 +236,7 @@ fn check_app_info(entry: &Path) -> Option<AppInfo> {
                 name: name_str.to_string(), 
                 version: plist_info.version.to_string(), 
                 short_version: plist_info.short_version.to_string(),
+                bundle_id: plist_info.bundle_id.to_string(),
                 check_update_type: cu_type
             };
             return Some(app_info);
@@ -272,33 +290,24 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
 /// - 配置文件，使用 `bundle id` 确定相应的应用，两种使用场景
 /// - 1. 忽略应用，比如企业证书分发的应用，还有无法通过应用商店、Sparkle方式、HomeBrew-Casks 查询到应用版本信息的应用，或者不想检查更新的应用；
 /// - 2. HomeBrew-Casks 检测时的别名，大部分应用需要配置
-fn get_config() -> yaml::Yaml {
+fn get_config() -> Config {
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
     path.push(".config/appcu/config.yaml");
     let content = fs::read_to_string(path).expect("读取配置文件时发生错误，`~/.config/appcu/config.yaml` 路径下不存在配置文件，您可以使用 `appcu generate_config` 生成一份默认配置文件");
-    let configs = yaml_rust::YamlLoader::load_from_str(&content).expect("解析配置文件时发生错误，配置文件格式错误");
-    let config = configs.get(0).expect("解析配置文件时发生错误，配置文件格式错误");
-    config.to_owned()
+    let config: Config = serde_yaml::from_str(&content).expect("解析配置文件时发生错误，配置文件格式错误");
+    config
 }
 
 /// 获取别名配置
-fn get_alias_config() -> yaml::Yaml {
+fn get_alias_config() -> HashMap<String, String> {
     let conf = get_config();
-    let section = &conf["alias"];
-    section.to_owned()
+    conf.alias
 }
 
 /// 获取忽略配置
 fn get_ignore_config() -> Vec<String> {
     let conf = get_config();
-    let section = &conf["ignore"];
-    if let Some(arr) = section.as_vec() {
-        arr.iter().map(|item| {
-            item.as_str().unwrap_or("").trim().to_string()
-        }).collect()
-    } else {
-        vec![]
-    }
+    conf.ignore
 }
 
 /// 查询是否是忽略应用
@@ -310,25 +319,13 @@ fn check_is_ignore(bundle_id: &str) -> bool {
 /// 获取配置文件中备用的商店区域代码
 fn get_mas_areas() -> Vec<String> {
     let conf = get_config();
-    let section = &conf["mas_area"];
-    if let Some(arr) = section.as_vec() {
-        arr.iter().map(|item| {
-            item.as_str().unwrap_or("").trim().to_string()
-        }).collect()
-    } else {
-        vec![]
-    }
+    conf.mas_area
 }
 
 /// 获取配置文件中设置的并发查询数量
 fn get_thread_nums() -> usize {
     let conf = get_config();
-    let threads_num_yaml = &conf["threads_num"];
-    if let Some(threads_num) = threads_num_yaml.as_str() {
-        threads_num.to_string().parse().unwrap_or(5)
-    } else {
-        5
-    }
+    conf.threads_num
 }
 
 /// 获取系统版本
@@ -358,9 +355,10 @@ fn get_system_version() -> String {
 #[tokio::main]
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
-    let file_name = match ALIAS[bundle_id].as_str() {
-        Some(alias_name) => alias_name,
-        None => &dealed_app_name
+    let file_name = if ALIAS[bundle_id].is_empty() {
+        &dealed_app_name
+    } else {
+        &ALIAS[bundle_id]
     };
     if let Ok(resp) = reqwest::get(format!("https://formulae.brew.sh/api/cask/{}.json", file_name)).await {
         if let Ok(text) = resp.text().await {
@@ -560,7 +558,8 @@ struct AppInfo {
     name: String,
     version: String,
     short_version: String,
-    check_update_type: CheckUpType,
+    bundle_id: String,
+    check_update_type: CheckUpType
 }
 
 #[derive(Debug, PartialEq)]
@@ -581,4 +580,12 @@ struct InfoPlistInfo {
 struct RemoteInfo {
     version: String,
     update_page_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Config {
+    threads_num: usize,
+    mas_area: Vec<String>,
+    alias: HashMap<String, String>,
+    ignore: Vec<String>
 }
