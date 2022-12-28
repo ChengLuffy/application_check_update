@@ -323,8 +323,8 @@ fn get_mas_areas() -> Vec<String> {
 /// 获取配置文件中设置的并发查询数量
 fn get_thread_nums() -> usize {
     let conf = get_config();
-    let section = &conf["config"];
-    if let Some(threads_num) = section["threads_num"].as_str() {
+    let threads_num_yaml = &conf["threads_num"];
+    if let Some(threads_num) = threads_num_yaml.as_str() {
         threads_num.to_string().parse().unwrap_or(5)
     } else {
         5
