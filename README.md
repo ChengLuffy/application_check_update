@@ -3,9 +3,14 @@
 ```
 macOS 应用检查更新
 
-Usage:
+Usage: 
   运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；
   运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；
+
+Commands:
+  generate_config  生成配置文件
+  ignore           忽略对应的应用
+  help             Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help information
@@ -17,8 +22,7 @@ Options:
 配置样例：
 ```
 # 并行查询数量，默认 5，太多会导致错误
-config:
-  threads_num: 5
+threads_num: 5
 
 # 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加
 mas_area:
