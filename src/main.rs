@@ -27,6 +27,7 @@ fn main() {
                             .allow_external_subcommands(true)
                             .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
                             .subcommand(Command::new("generate_config").about("生成配置文件"))
+                            .subcommand(Command::new("ignore").about("忽略对应的应用").override_usage("appcu ignore /Applications/xx.app /Applications/yy.app"))
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
@@ -35,14 +36,20 @@ fn main() {
         results.append(&mut ext_args);
         if results.is_empty() {
             check_all()
-        } else if results.len() == 1 && results.contains(&"generate_config") {
+        } else if results.len() == 1 && external == "generate_config" {
             generate_config()
+        } else if external == "ignore" {
+            ignore_some(ext_args)
         } else {
             check_some(results)
         }
     } else {
         check_all()
     }
+}
+
+fn ignore_some(bundle_id_vec: Vec<&str>) {
+    // 通过文件读写改变配置文件
 }
 
 /// 生成配置文件
@@ -134,6 +141,7 @@ fn check_update(app_info: AppInfo) {
             break;
         }
     }
+    // TODO: 完善输出
     if remote_info.version.is_empty() {
         println!("=====");
         println!("{}", app_info.name);
@@ -475,7 +483,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
                 let update_page_url = item.get("trackViewUrl").unwrap().to_string().replace('\"', "");
                 let mut version = item.get("version").unwrap().to_string().replace('\"', "");
                 // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
-                // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的、loading 时的文本
+                // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本
                 // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
                 let client = reqwest::Client::new();
                 if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
