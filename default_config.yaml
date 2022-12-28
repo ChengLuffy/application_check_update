@@ -1,0 +1,24 @@
+config:
+  # 并发查询应用数量，默认5
+  threads_num: 5
+
+# 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加
+mas_area:
+  # - cn
+
+# HomeBrew 查询时，是将应用名称直接查寻，但是某些应用无法直接查到，可以在这里设置查询的别名
+alias:
+  org.gimp.gimp-2.10: gimp
+  com.kingsoft.wpsoffice.mac: wpsoffice-cn
+  com.parallels.desktop.console: parallels
+  org.jkiss.dbeaver.core.product: dbeaver-community
+  com.jetbrains.intellij.ce: intellij-idea-ce
+  com.bilibili.bilibiliPC: bilibili
+  com.chamburr.Glance: glance-chamburr
+
+# 有些应用不用查询，或者无法查询（例如已经下架、未被收录在 HomeBrew 等），可以在这里设置忽略
+ignore:
+  - org.pqrs.Karabiner-EventViewer
+  - com.apple.Safari
+  - com.apple.SafariTechnologyPreview
+  - org.gpgtools.gpgkeychain
