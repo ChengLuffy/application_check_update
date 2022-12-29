@@ -1,5 +1,5 @@
 use core::str;
-use std::{fs, path::{Path, PathBuf}, cmp, collections::HashMap};
+use std::{fs, path::{Path, PathBuf}, cmp, collections::HashMap, fmt::Display};
 use plist::Value;
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
@@ -162,12 +162,12 @@ fn check_update(app_info: AppInfo) {
     }
     // TODO: 完善输出，现在 `check_update_type` 输出不够直观
     if remote_info.version.is_empty() {
-        println!("=====");
+        println!("+++++");
         println!("{}", app_info.name);
-        println!("{:?}", app_info.check_update_type);
+        println!("{}", app_info.check_update_type);
         println!("local version {}", app_info.short_version);
         println!("remote version check failed");
-        println!("=====\n");
+        println!("+++++\n");
     }
     // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure，版本好也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是，homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4
     let local_cmp_version = if !app_info.short_version.is_empty() && !matches!(app_info.check_update_type, CheckUpType::Sparkle(_)) || ( remote_info.version.contains('.') && app_info.short_version.contains('.')) {
@@ -358,32 +358,40 @@ fn get_system_version() -> String {
 #[tokio::main]
 async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
-    let file_name = if ALIAS[bundle_id].is_empty() {
+    let alias_keys = ALIAS.keys();
+    let file_name = if !alias_keys.into_iter().any(|x| x == &bundle_id.to_string()) {
         &dealed_app_name
     } else {
         &ALIAS[bundle_id]
     };
     if let Ok(resp) = reqwest::get(format!("https://formulae.brew.sh/api/cask/{}.json", file_name)).await {
         if let Ok(text) = resp.text().await {
-            let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let version_arr: Vec<&str> = json_value.get("version").unwrap().as_str().unwrap().split(',').collect();
-            let version: &str = version_arr.first().unwrap_or(&"");
-            let arch_str = std::env::consts::ARCH;
-            let mut url = json_value.get("url").unwrap().as_str().unwrap_or_default().to_string();
-            if SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
-                if let Some(variations) = json_value.get("variations") {
-                    if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
-                        if let Some(url_value) = arm64_ventura.get("url") {
-                            let url_temp = url_value.as_str().unwrap_or_default().to_string();
-                            url = url_temp;
+            if let Ok(json_value) = serde_json::from_str(&text) {
+                let json_value: serde_json::Value = json_value;
+                let version_arr: Vec<&str> = json_value.get("version").unwrap().as_str().unwrap().split(',').collect();
+                let version: &str = version_arr.first().unwrap_or(&"");
+                let arch_str = std::env::consts::ARCH;
+                let mut url = json_value.get("url").unwrap().as_str().unwrap_or_default().to_string();
+                if SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
+                    if let Some(variations) = json_value.get("variations") {
+                        if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
+                            if let Some(url_value) = arm64_ventura.get("url") {
+                                let url_temp = url_value.as_str().unwrap_or_default().to_string();
+                                url = url_temp;
+                            }
                         }
                     }
                 }
+                return RemoteInfo {
+                    version: version.to_string(),
+                    update_page_url: url
+                };
+            } else {
+                return RemoteInfo {
+                    version: "".to_string(),
+                    update_page_url: String::new()
+                };
             }
-            return RemoteInfo {
-                version: version.to_string(),
-                update_page_url: url
-            };
         }
     }
     RemoteInfo {
@@ -571,6 +579,19 @@ enum CheckUpType {
     // iOS(String),
     Sparkle(String),
     HomeBrew {app_name: String, bundle_id: String}
+}
+
+impl Display for CheckUpType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CheckUpType::Mas(bundle_id) => write!(f, "检查更新方式为 iTunes API，获取到的 bundle_id 为: {}", bundle_id),
+            CheckUpType::Sparkle(feed_url) => write!(f, "检查更新方式为 Sparkle，获取到的 SUFeedURL 为: {}", feed_url),
+            CheckUpType::HomeBrew { app_name, bundle_id } => {
+                let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
+                write!(f, "检查更新方式为 HomeBrew，获取到的 bundle_id 为: {}，默认的信息获取链接为: https://formulae.brew.sh/api/cask/{}.json", bundle_id, dealed_app_name)
+            }
+        }
+    }
 }
 
 struct InfoPlistInfo {
