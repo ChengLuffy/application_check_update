@@ -8,10 +8,10 @@ Usage:
   运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；
 
 Commands:
-  ignore               忽略对应的应用
-  alias                设置 HomeBrew 查询方式的应用别名
-  generate_config, -g  生成配置文件，详情请查看 `appcu help generate_config`
-  help                 Print this message or the help of the given subcommand(s)
+  ignore           忽略对应的应用
+  alias            设置 HomeBrew 查询方式的应用别名
+  generate_config  简写: `gc`，生成配置文件，详情请查看 `appcu help generate_config`
+  help             Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help information
@@ -21,7 +21,7 @@ Options:
 ### 说明
 #### `generate_config`
 ```
-生成配置文件，详情请查看 `appcu help generate_config`
+简写: `gc`，生成配置文件，详情请查看 `appcu help generate_config`
 
 Usage: appcu generate_config
 
