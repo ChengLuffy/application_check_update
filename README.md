@@ -8,41 +8,70 @@ Usage:
   运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；
 
 Commands:
-  generate_config  生成配置文件
-  ignore           忽略对应的应用
-  help             Print this message or the help of the given subcommand(s)
+  ignore               忽略对应的应用
+  alias                设置 HomeBrew 查询方式的应用别名
+  generate_config, -g  生成配置文件，详情请查看 `appcu help generate_config`
+  help                 Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help information
   -V, --version  Print version information
 ```
 
-### 配置文件
-**配置文件读取路径：`～/.config/appcu/config.yaml`**
-配置样例：
+### 说明
+#### `generate_config`
+```
+生成配置文件，详情请查看 `appcu help generate_config`
+
+Usage: appcu generate_config
+
+配置文件路径：`~/.config/appcu/config.yaml`
+配置文件说明：
+
 ```
 # 并行查询数量，默认 5，太多会导致错误
 threads_num: 5
 
 # 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加
 mas_area:
+  # 例如我的主账号为美区账号，但是一些应用使用国区账号下载，所以将国区 `area_code` 添加在此处
   - cn
 
 # HomeBrew 查询时，是将应用名称直接查寻，但是某些应用无法直接查到，可以在这里设置查询的别名
 alias:
-  org.gimp.gimp-2.10: gimp
+  # 例如：wps，获取当前安装的应用 bundle_id 为 `com.kingsoft.wpsoffice.mac`
+  # 通过 `brew search wpsoffice` 选择 `wpsoffice-cn`，映射如下
   com.kingsoft.wpsoffice.mac: wpsoffice-cn
-  com.parallels.desktop.console: parallels
-  org.jkiss.dbeaver.core.product: dbeaver-community
-  com.jetbrains.intellij.ce: intellij-idea-ce
-  com.bilibili.bilibiliPC: bilibili
-  com.chamburr.Glance: glance-chamburr
 
 # 有些应用不用查询，或者无法查询（例如已经下架、未被收录在 HomeBrew 等），可以在这里设置忽略
 ignore:
-  - org.pqrs.Karabiner-EventViewer
+  # 例 safari 无法通过任何手段查询更新，获取 safari bundle_id 进行忽略
+  # 也可以利用 `appcu ignore ...` 进行忽略
   - com.apple.Safari
-  - org.gpgtools.gpgkeychain
+```
+
+Options:
+  -h, --help  Print help information
+```
+
+#### `ignore`
+```
+忽略对应的应用
+
+Usage: appcu ignore /Applications/xx.app /Applications/yy.app
+
+Options:
+  -h, --help  Print help information
+```
+
+#### `alias`
+```
+设置 HomeBrew 查询方式的应用别名
+
+Usage: appcu alias app.bundle.id alias_name
+
+Options:
+  -h, --help  Print help information
 ```
 
 ## 为什么

@@ -24,14 +24,16 @@ fn main() {
                             .about("macOS 应用检查更新")
                             .allow_external_subcommands(true)
                             .override_usage("\n  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查；\n  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查；")
-                            .subcommand(Command::new("generate_config")
-                                                        .about("生成配置文件"))
                             .subcommand(Command::new("ignore")
                                                         .about("忽略对应的应用")
                                                         .override_usage("appcu ignore /Applications/xx.app /Applications/yy.app"))
                             .subcommand(Command::new("alias")
                                                         .about("设置 HomeBrew 查询方式的应用别名")
                                                         .override_usage("appcu alias app.bundle.id alias_name"))
+                            .subcommand(Command::new("generate_config")
+                                                        .short_flag('g')
+                                                        .about("生成配置文件，详情请查看 `appcu help generate_config`")
+                                                        .override_usage("appcu generate_config\n\n配置文件路径：`~/.config/appcu/config.yaml`\n配置文件说明：\n```\n# 并行查询数量，默认 5，太多会导致错误\nthreads_num: 5\n\n# 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加\nmas_area:\n  # 例如我的主账号为美区账号，但是一些应用使用国区账号下载，所以将国区 `area_code` 添加在此处\n  - cn\n\n# HomeBrew 查询时，是将应用名称直接查寻，但是某些应用无法直接查到，可以在这里设置查询的别名\nalias:\n  # 例如：wps，获取当前安装的应用 bundle_id 为 `com.kingsoft.wpsoffice.mac`\n  # 通过 `brew search wpsoffice` 选择 `wpsoffice-cn`，映射如下\n  com.kingsoft.wpsoffice.mac: wpsoffice-cn\n\n# 有些应用不用查询，或者无法查询（例如已经下架、未被收录在 HomeBrew 等），可以在这里设置忽略\nignore:\n  # 例 safari 无法通过任何手段查询更新，获取 safari bundle_id 进行忽略\n  # 也可以利用 `appcu ignore ...` 进行忽略\n  - com.apple.Safari\n```"))
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
@@ -141,6 +143,7 @@ async fn generate_config() {
                     new_path.push(new_name);
                     fs::rename(&path, new_path).expect("原有配置文件重命名错误");
                 } else {
+                    println!("用户取消默认配置文件生成");
                     return;
                 }
             }
