@@ -18,7 +18,6 @@ lazy_static! {
 }
 
 /// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
-/// TODO: alias 命令
 fn main() {
     let command = Command::new("appcu")
                             .name("appcu")
@@ -30,6 +29,9 @@ fn main() {
                             .subcommand(Command::new("ignore")
                                                         .about("忽略对应的应用")
                                                         .override_usage("appcu ignore /Applications/xx.app /Applications/yy.app"))
+                            .subcommand(Command::new("alias")
+                                                        .about("设置 HomeBrew 查询方式的应用别名")
+                                                        .override_usage("appcu alias app.bundle.id alias_name"))
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
@@ -40,10 +42,36 @@ fn main() {
             check_all()
         } else if results.len() == 1 && external == "generate_config" {
             generate_config()
-        } else if external.starts_with("ignore ") { // FIXME: 好像这么写有问题，但还不确定怎么改
-            let mut vec: Vec<&str> = external.split(' ').collect();
-            vec.remove(0);
-            ignore_some(vec)
+        } else if external.starts_with("ignore") { // FIXME: 好像这么写有问题，但还不确定怎么改
+            if !external.starts_with("ignore ") {
+                println!("未能识别 ignore 参数，ignore 命令使用方式为 `appcu ignore /Applications/xx.app/ /Applications/yy.app/ ...`")
+            } else {
+                let mut vec: Vec<&str> = external.split(' ').collect();
+                vec.remove(0);
+                if vec.is_empty() {
+                    println!("未能识别 ignore 参数，ignore 命令使用方式为 `appcu ignore /Applications/xx.app/ /Applications/yy.app/ ...`")
+                } else {
+                    ignore_some(vec)
+                }
+            }
+        } else if external.starts_with("alias") { // FIXME: 好像这么写有问题，但还不确定怎么改
+            if !external.starts_with("alias ") {
+                println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`") 
+            } else {
+                let mut vec: Vec<&str> = external.split(' ').collect();
+                vec.remove(0);
+                if vec.len() == 2 {
+                    let bundle_id = vec.first().unwrap();
+                    if bundle_id.contains('.') {
+                        let alias_name = vec.get(1).unwrap();
+                        alias(bundle_id, alias_name)
+                    } else {
+                        println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
+                    }
+                } else {
+                    println!("未能识别命令，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
+                }
+            }
         } else {
             check_some(results)
         }
@@ -52,9 +80,20 @@ fn main() {
     }
 }
 
+fn alias(bundle_id: &str, alias_name: &str) {
+    let mut config = get_config();
+    if let Some(x) = config.alias.get_mut(bundle_id) {
+        *x = alias_name.to_string();
+    } else {
+        config.alias.insert(bundle_id.to_string(), alias_name.to_string());
+    }
+    // println!("{:?}", config.alias);
+    write_config(config);
+    println!("设置成功")
+}
+
 /// 忽略一些应用
 fn ignore_some(bundle_id_vec: Vec<&str>) {
-    // 通过文件读写改变配置文件
     let mut config = get_config();
     for item in bundle_id_vec {
         if let Some(app_info) = check_app_info(Path::new(item)) {
@@ -63,8 +102,13 @@ fn ignore_some(bundle_id_vec: Vec<&str>) {
             }
         }
     }
+    write_config(config);
+    println!("设置成功")
+}
+
+fn write_config(config: Config) {
     let config_content = serde_yaml::to_string(&config).expect("配置转换为文本错误");
-    // FIXME: 没有缩进感觉不对，希望这么改不会出问题
+    // 没有缩进感觉不对，希望这么改不会出问题
     let fmt_content = config_content.replace("\n-", "\n  -");
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
     path.push(".config/appcu/config.yaml");
@@ -148,7 +192,7 @@ fn check_update(app_info: AppInfo) {
     let mut remote_info: RemoteInfo;
     loop {
         remote_info = match check_update_type {
-            CheckUpType::Mas(bundle_id) =>  area_check(bundle_id), 
+            CheckUpType::Mas {bundle_id, is_ios_app} =>  area_check(bundle_id, *is_ios_app), 
             CheckUpType::Sparkle(feed_url) => sparkle_feed_check(feed_url),
             CheckUpType::HomeBrew {app_name, bundle_id} => homebrew_check(app_name, bundle_id)
             // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
@@ -160,7 +204,6 @@ fn check_update(app_info: AppInfo) {
             break;
         }
     }
-    // TODO: 完善输出，现在 `check_update_type` 输出不够直观
     if remote_info.version.is_empty() {
         println!("+++++");
         println!("{}", app_info.name);
@@ -210,7 +253,10 @@ fn check_app_info(entry: &Path) -> Option<AppInfo> {
             if check_is_ignore(&plist_info.bundle_id) {
                 return None;
             }
-            let cu_type = CheckUpType::Mas(plist_info.bundle_id.to_string());
+            let cu_type = CheckUpType::Mas {
+                bundle_id: plist_info.bundle_id.to_string(),
+                is_ios_app: true
+            };
             let app_info = AppInfo {
                 name: name_str.to_string(),
                 version: plist_info.version,
@@ -226,7 +272,10 @@ fn check_app_info(entry: &Path) -> Option<AppInfo> {
             }
             let cu_type: CheckUpType;
             if receipt_path.exists() {
-                cu_type = CheckUpType::Mas(plist_info.bundle_id.to_string());
+                cu_type = CheckUpType::Mas {
+                    bundle_id: plist_info.bundle_id.to_string(),
+                    is_ios_app: false
+                };
             } else if let Some(feed_url) = plist_info.feed_url {
                 cu_type = CheckUpType::Sparkle(feed_url);
             } else {
@@ -467,11 +516,11 @@ async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
 }
 
 /// MAS 应用和 iOS 应用可能存在区域内未上架的问题，采取先检测 cn 后检测 us 的方式
-fn area_check(bundle_id: &str) -> RemoteInfo {
+fn area_check(bundle_id: &str, is_ios_app: bool) -> RemoteInfo {
     let mut mas_areas = MASAREAS.to_vec();
     mas_areas.insert(0, "".to_string());
     for area_code in mas_areas {
-        let remote_info_opt = mas_app_check(&area_code, bundle_id);
+        let remote_info_opt = mas_app_check(&area_code, bundle_id, is_ios_app);
         if let Some(remote_info) = remote_info_opt {
             return remote_info;
         }
@@ -481,7 +530,7 @@ fn area_check(bundle_id: &str) -> RemoteInfo {
 
 /// 通过 itunes api 查询应用信息
 #[tokio::main]
-async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
+async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Option<RemoteInfo> {
     if let Ok(resp) = reqwest::get(format!("https://itunes.apple.com/{}/lookup?bundleId={}", area_code, bundle_id)).await {
         if let Ok(text) = resp.text().await {
             let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
@@ -491,19 +540,25 @@ async fn mas_app_check(area_code: &str, bundle_id: &str) -> Option<RemoteInfo> {
                 let item = results.get(0).unwrap();
                 let update_page_url = item.get("trackViewUrl").unwrap().to_string().replace('\"', "");
                 let mut version = item.get("version").unwrap().to_string().replace('\"', "");
-                // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
-                // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本
-                // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
-                let client = reqwest::Client::new();
-                if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
-                    if let Ok(text) = resp.text().await {
-                        if let Ok(document) = html::parse(&text) {
-                            let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
-                            if let Ok(nodes) = xpath.apply(&document) {
-                                if let Some(doc_node) = nodes.get(0) {
-                                    if let Some(text) = doc_node.get_text(&document) {
-                                        if let Some(last) = text.split(' ').last() {
-                                            version = last.to_string();
+                // iOS 和 iPadOS 的应用不需要走这个流程
+                if !is_ios_app {
+                    // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
+                    // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
+                    // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
+                    let client = reqwest::Client::new();
+                    loop {
+                        if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
+                            if let Ok(text) = resp.text().await {
+                                if let Ok(document) = html::parse(&text) {
+                                    let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
+                                    if let Ok(nodes) = xpath.apply(&document) {
+                                        if let Some(doc_node) = nodes.get(0) {
+                                            if let Some(text) = doc_node.get_text(&document) {
+                                                if let Some(last) = text.split(' ').last() {
+                                                    version = last.to_string();
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -575,8 +630,7 @@ struct AppInfo {
 
 #[derive(Debug, PartialEq)]
 enum CheckUpType {
-    Mas(String),
-    // iOS(String),
+    Mas {bundle_id: String, is_ios_app: bool},
     Sparkle(String),
     HomeBrew {app_name: String, bundle_id: String}
 }
@@ -584,7 +638,14 @@ enum CheckUpType {
 impl Display for CheckUpType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CheckUpType::Mas(bundle_id) => write!(f, "检查更新方式为 iTunes API，获取到的 bundle_id 为: {}", bundle_id),
+            CheckUpType::Mas { bundle_id, is_ios_app } => {
+                let temp = if *is_ios_app {
+                    "，这是一个 iOS/iPadOS 应用"
+                } else {
+                    ""
+                };
+                write!(f, "检查更新方式为 iTunes API，获取到的 bundle_id 为: {}{}", bundle_id, temp)
+            },
             CheckUpType::Sparkle(feed_url) => write!(f, "检查更新方式为 Sparkle，获取到的 SUFeedURL 为: {}", feed_url),
             CheckUpType::HomeBrew { app_name, bundle_id } => {
                 let dealed_app_name = app_name.to_lowercase().replace(' ', "-");

@@ -7,7 +7,25 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu ignore /Applications/备忘录.app/'",
+      "name": "Debug executable 'appcu alias org.gimp.gimp-2.10 gimp'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=appcu",
+          "--package=appcu"
+        ],
+        "filter": {
+          "name": "appcu",
+          "kind": "bin"
+        }
+      },
+      "args": ["alias org.gimp.gimp-2.10 gimp"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'appcu ignore /Applications/Music.app/'",
       "cargo": {
         "args": [
           "build",
