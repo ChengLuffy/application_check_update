@@ -89,7 +89,6 @@ fn alias(bundle_id: &str, alias_name: &str) {
     } else {
         config.alias.insert(bundle_id.to_string(), alias_name.to_string());
     }
-    // println!("{:?}", config.alias);
     write_config(config);
     println!("设置成功")
 }
@@ -247,27 +246,32 @@ fn check_app_info(entry: &Path) -> Option<AppInfo> {
     if !app_name_str.starts_with('.') && app_name_str.ends_with(".app") {
         let content_path = &path.join("Contents");
         let receipt_path = &content_path.join("_MASReceipt");
-        let wrapper_path = &path.join("Wrapper/iTunesMetadata.plist");
+        let wrapper_path = &path.join("Wrapper");
+        let wrapper_plist_path = &path.join("Wrapper/iTunesMetadata.plist");
         let info_plist_path = &content_path.join("Info.plist");
         let name_strs: Vec<&str> = app_name_str.split(".app").collect();
         let name_str = name_strs[0];
         if wrapper_path.exists() {
-            let plist_info = read_plist_info(wrapper_path);
-            if check_is_ignore(&plist_info.bundle_id) {
+            if wrapper_plist_path.exists() {
+                let plist_info = read_plist_info(wrapper_plist_path);
+                if check_is_ignore(&plist_info.bundle_id) {
+                    return None;
+                }
+                let cu_type = CheckUpType::Mas {
+                    bundle_id: plist_info.bundle_id.to_string(),
+                    is_ios_app: true
+                };
+                let app_info = AppInfo {
+                    name: name_str.to_string(),
+                    version: plist_info.version,
+                    short_version: plist_info.short_version,
+                    bundle_id: plist_info.bundle_id,
+                    check_update_type: cu_type
+                };
+                return Some(app_info);
+            } else {
                 return None;
             }
-            let cu_type = CheckUpType::Mas {
-                bundle_id: plist_info.bundle_id.to_string(),
-                is_ios_app: true
-            };
-            let app_info = AppInfo {
-                name: name_str.to_string(),
-                version: plist_info.version,
-                short_version: plist_info.short_version,
-                bundle_id: plist_info.bundle_id,
-                check_update_type: cu_type
-            };
-            return Some(app_info);
         } else {
             let plist_info = read_plist_info(info_plist_path);
             if check_is_ignore(&plist_info.bundle_id) {
@@ -311,7 +315,7 @@ fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         version_key_str = "bundleVersion";
         bundle_id_key_str = "softwareVersionBundleId";
     }
-    let value = Value::from_file(plist_path).expect("failed to read plist file");
+    let value = Value::from_file(plist_path).expect(&format!("plist 文件读取错误 {:?}", plist_path));
     let bundle_id = value
                             .as_dictionary()
                             .and_then(|dict| dict.get(bundle_id_key_str))
