@@ -28,7 +28,6 @@ Usage: appcu generate_config
 配置文件路径：`~/.config/appcu/config.yaml`
 配置文件说明：
 
-```
 # 并行查询数量，默认 5，太多会导致错误
 threads_num: 5
 
@@ -47,8 +46,7 @@ alias:
 ignore:
   # 例 safari 无法通过任何手段查询更新，获取 safari bundle_id 进行忽略
   # 也可以利用 `appcu ignore ...` 进行忽略
-  - com.apple.Safari
-```
+- com.apple.Safari
 
 Options:
   -h, --help  Print help information
