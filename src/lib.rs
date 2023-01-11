@@ -13,7 +13,7 @@ lazy_static! {
   static ref IGNORES: Vec<String> = local::config::get_ignore_config();
   static ref ALIAS: HashMap<String, String> = local::config::get_alias_config();
   static ref MASAREAS: Vec<String> = local::config::get_mas_areas();
-  static ref SYSTEM_NAME: String = local::plist::get_system_version();
+  static ref ARM_SYSTEM_NAME: String = local::plist::get_arm_system_version();
   static ref THREADNUMS: usize = local::config::get_thread_nums();
 }
 
