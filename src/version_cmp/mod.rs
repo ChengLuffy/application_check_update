@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// 版本号比对
-pub(crate) fn cmp_version(a: &str, b: &str, compare_len: bool) -> std::cmp::Ordering {
+pub fn cmp_version(a: &str, b: &str, compare_len: bool) -> std::cmp::Ordering {
   let mut a_version_str = a;
   if a.contains(' ') {
       let temp: Vec<&str> = a.split(' ').collect();
