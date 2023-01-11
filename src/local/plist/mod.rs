@@ -45,7 +45,7 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
 }
 
 /// 获取系统版本
-pub fn get_system_version() -> String {
+pub fn get_arm_system_version() -> String {
   let info = Value::from_file("/System/Library/CoreServices/SystemVersion.plist").expect("/System/Library/CoreServices/SystemVersion.plist 不存在");
   let product_version = info
                               .as_dictionary()

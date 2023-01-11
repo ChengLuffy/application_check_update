@@ -1,7 +1,8 @@
 use rss::Channel;
 use skyscraper::html;
-use super::{ALIAS, SYSTEM_NAME, MASAREAS, version_cmp};
+use super::{ALIAS, ARM_SYSTEM_NAME, MASAREAS, version_cmp};
 
+#[derive(Debug)]
 pub struct RemoteInfo {
   pub version: String,
   pub update_page_url: String,
@@ -31,9 +32,9 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
               let version: &str = version_arr.first().unwrap_or(&"");
               let arch_str = std::env::consts::ARCH;
               let mut url = json_value.get("url").unwrap().as_str().unwrap_or_default().to_string();
-              if SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
+              if ARM_SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
                   if let Some(variations) = json_value.get("variations") {
-                      if let Some(arm64_ventura) = variations.get(SYSTEM_NAME.as_str()) {
+                      if let Some(arm64_ventura) = variations.get(ARM_SYSTEM_NAME.as_str()) {
                           if let Some(url_value) = arm64_ventura.get("url") {
                               let url_temp = url_value.as_str().unwrap_or_default().to_string();
                               url = url_temp;
