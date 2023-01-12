@@ -31,7 +31,8 @@ Usage: appcu generate_config
 # 并行查询数量，默认 5，太多会导致错误
 threads_num: 5
 
-# 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加
+# 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域
+# 如果有一些应用是其他区域专属，可以在此添加
 mas_area:
   # 例如我的主账号为美区账号，但是一些应用使用国区账号下载，所以将国区 `area_code` 添加在此处
   - cn

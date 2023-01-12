@@ -48,6 +48,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                     .as_str()
                     .unwrap_or_default()
                     .to_string();
+                // FIXME: 由于自己受伤只有一个 M1 Pro mac 无法确定下面的判断是否正确
                 if ARM_SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
                     if let Some(variations) = json_value.get("variations") {
                         if let Some(arm64_system_name) = variations.get(ARM_SYSTEM_NAME.as_str()) {
@@ -55,6 +56,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                                 let url_temp = url_value.as_str().unwrap_or_default().to_string();
                                 url = url_temp;
                             }
+                            // 个别应用，例如 dingtalk 7.0.x 时，M 系列版本和 intel 版本不是一个版本号
                             if let Some(version_value) = arm64_system_name.get("version") {
                                 let version_temp = version_value.as_str().unwrap_or_default();
                                 version = version_temp;

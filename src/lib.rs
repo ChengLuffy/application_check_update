@@ -34,7 +34,7 @@ pub fn check_all() {
     let n_workers: usize = *THREADNUMS;
     let pool = ThreadPool::new(n_workers);
     for item in fs::read_dir(apps_path).unwrap() {
-        // 直接使用 thread::spawn 会产生 `Too many open files` 的问题，也不知道这是不是合适的解决方法
+        // 直接使用 thread::spawn 会产生 `Too many open files` 的问题
         pool.execute(move || match item {
             Ok(path) => {
                 let app_info = local::check_app_info(&path.path());
@@ -62,7 +62,8 @@ fn check_update(app_info: AppInfo) {
             CheckUpType::HomeBrew {
                 app_name,
                 bundle_id,
-            } => request::homebrew_check(app_name, bundle_id), // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
+            } => request::homebrew_check(app_name, bundle_id),
+            // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
         };
         if &remote_info.version == "-1" {
             continue;
@@ -79,7 +80,9 @@ fn check_update(app_info: AppInfo) {
         println!("remote version check failed");
         println!("+++++\n");
     }
-    // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure，版本好也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是，homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4
+    // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure
+    // FIXME: 版本号也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是
+    // FIXME: homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4，比如有些应用本地查到是 7.0.2，接口查到是 7.0.2.7，但其实是一个版本
     let local_cmp_version = if !app_info.short_version.is_empty()
         && !matches!(app_info.check_update_type, CheckUpType::Sparkle(_))
         || (remote_info.version.contains('.') && app_info.short_version.contains('.'))
