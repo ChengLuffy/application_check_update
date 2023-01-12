@@ -1,6 +1,6 @@
+use clap::Command;
 use core::str;
 use std::ffi::OsString;
-use clap::Command;
 
 /// TODO: 尝试使用 tui 输出 （是否要做，挺麻烦的）？
 fn main() {
@@ -22,14 +22,19 @@ fn main() {
                             .version("0.1.0");
     let args = command.get_matches();
     if let Some((external, ext_m)) = args.subcommand() {
-        let mut ext_args: Vec<&str> = ext_m.get_many::<OsString>("").unwrap_or_default().map(|x| x.to_str().unwrap_or_default()).collect();
+        let mut ext_args: Vec<&str> = ext_m
+            .get_many::<OsString>("")
+            .unwrap_or_default()
+            .map(|x| x.to_str().unwrap_or_default())
+            .collect();
         let mut results = vec![external];
         results.append(&mut ext_args);
         if results.is_empty() {
             appcu::check_all()
         } else if results.len() == 1 && external == "generate_config" {
             appcu::local::config::generate_config()
-        } else if external.starts_with("ignore") { // FIXME: 好像这么写有问题，但还不确定怎么改
+        } else if external.starts_with("ignore") {
+            // FIXME: 好像这么写有问题，但还不确定怎么改
             if !external.starts_with("ignore ") {
                 println!("未能识别 ignore 参数，ignore 命令使用方式为 `appcu ignore /Applications/xx.app/ /Applications/yy.app/ ...`")
             } else {
@@ -38,12 +43,13 @@ fn main() {
                 if vec.is_empty() {
                     println!("未能识别 ignore 参数，ignore 命令使用方式为 `appcu ignore /Applications/xx.app/ /Applications/yy.app/ ...`")
                 } else {
-                   appcu::local::config::ignore_some(vec)
+                    appcu::local::config::ignore_some(vec)
                 }
             }
-        } else if external.starts_with("alias") { // FIXME: 好像这么写有问题，但还不确定怎么改
+        } else if external.starts_with("alias") {
+            // FIXME: 好像这么写有问题，但还不确定怎么改
             if !external.starts_with("alias ") {
-                println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`") 
+                println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
             } else {
                 let mut vec: Vec<&str> = external.split(' ').collect();
                 vec.remove(0);
@@ -56,7 +62,9 @@ fn main() {
                         println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
                     }
                 } else {
-                    println!("未能识别命令，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
+                    println!(
+                        "未能识别命令，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`"
+                    )
                 }
             }
         } else {
