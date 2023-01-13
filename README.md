@@ -18,7 +18,29 @@ Options:
   -V, --version  Print version information
 ```
 
-### 说明
+### 安装
+
+目前应用未经受测试，也有一些无法解决的问题，比如：“通过 Homebrew api 查询应用更新时，有些应用无法正确的比对版本”，如果您想安装使用，可以下载源码后进行编译使用。
+
+```
+// 克隆仓库
+git clone https://github.com/ChengLuffy/application_check_update.git appcu
+
+// 进入文件夹
+cd appcu
+
+// 编译发行版本，如果没有安装 Rust 环境，请先搜索安装
+cargo build --release
+
+// 拷贝到任何一个 $PATH 包含的文件夹下
+cp target/release/appcu /usr/local/bin/
+
+// 查看是否运行正常
+appcu -h
+```
+
+
+### 使用说明
 #### `generate_config`
 ```
 简写: `gc`，生成配置文件，详情请查看 `appcu help generate_config`
