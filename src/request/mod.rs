@@ -25,8 +25,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
         &ALIAS[bundle_id]
     };
     if let Ok(resp) = reqwest::get(format!(
-        "https://formulae.brew.sh/api/cask/{}.json",
-        file_name
+        "https://formulae.brew.sh/api/cask/{file_name}.json"
     ))
     .await
     {
@@ -168,8 +167,7 @@ pub fn area_check(bundle_id: &str, is_ios_app: bool) -> RemoteInfo {
 #[tokio::main]
 async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Option<RemoteInfo> {
     if let Ok(resp) = reqwest::get(format!(
-        "https://itunes.apple.com/{}/lookup?bundleId={}",
-        area_code, bundle_id
+        "https://itunes.apple.com/{area_code}/lookup?bundleId={bundle_id}"
     ))
     .await
     {

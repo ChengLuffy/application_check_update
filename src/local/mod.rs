@@ -33,21 +33,19 @@ impl Display for CheckUpType {
                 };
                 write!(
                     f,
-                    "检查更新方式为 iTunes API，获取到的 bundle_id 为: {}{}",
-                    bundle_id, temp
+                    "检查更新方式为 iTunes API，获取到的 bundle_id 为: {bundle_id}{temp}"
                 )
             }
             CheckUpType::Sparkle(feed_url) => write!(
                 f,
-                "检查更新方式为 Sparkle，获取到的 SUFeedURL 为: {}",
-                feed_url
+                "检查更新方式为 Sparkle，获取到的 SUFeedURL 为: {feed_url}"
             ),
             CheckUpType::HomeBrew {
                 app_name,
                 bundle_id,
             } => {
                 let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
-                write!(f, "检查更新方式为 HomeBrew，获取到的 bundle_id 为: {}，默认的信息获取链接为: https://formulae.brew.sh/api/cask/{}.json", bundle_id, dealed_app_name)
+                write!(f, "检查更新方式为 HomeBrew，获取到的 bundle_id 为: {bundle_id}，默认的信息获取链接为: https://formulae.brew.sh/api/cask/{dealed_app_name}.json")
             }
         }
     }

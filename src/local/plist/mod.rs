@@ -20,7 +20,7 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         bundle_id_key_str = "softwareVersionBundleId";
     }
     let value = Value::from_file(plist_path)
-        .unwrap_or_else(|_| panic!("plist 文件读取错误 {:?}", plist_path));
+        .unwrap_or_else(|_| panic!("plist 文件读取错误 {plist_path:?}"));
     let bundle_id = value
         .as_dictionary()
         .and_then(|dict| dict.get(bundle_id_key_str))

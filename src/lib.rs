@@ -42,7 +42,7 @@ pub fn check_all() {
                     check_update(info);
                 }
             }
-            Err(error) => println!("{:?}", error),
+            Err(error) => println!("{error:?}"),
         });
     }
     pool.join();
@@ -96,7 +96,7 @@ fn check_update(app_info: AppInfo) {
         // if &remote_info.version != "-2" {
         println!("=====");
         println!("{}", app_info.name);
-        println!("local version {}", local_cmp_version);
+        println!("local version {local_cmp_version}");
         println!("remote version {}", remote_info.version);
         println!("{}", remote_info.update_page_url);
         println!("=====\n");
