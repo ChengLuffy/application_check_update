@@ -34,7 +34,6 @@ fn main() {
         } else if results.len() == 1 && external == "generate_config" {
             appcu::local::config::generate_config()
         } else if external.starts_with("ignore") {
-            // FIXME: 好像这么写有问题，但还不确定怎么改
             if !external.starts_with("ignore ") {
                 println!("未能识别 ignore 参数，ignore 命令使用方式为 `appcu ignore /Applications/xx.app/ /Applications/yy.app/ ...`")
             } else {
@@ -47,7 +46,6 @@ fn main() {
                 }
             }
         } else if external.starts_with("alias") {
-            // FIXME: 好像这么写有问题，但还不确定怎么改
             if !external.starts_with("alias ") {
                 println!("未能识别 bundle_id 参数，alias 命令使用方式为 `appcu alias app.bundle.id alias_name`")
             } else {
