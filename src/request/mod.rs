@@ -193,7 +193,12 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                     // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
                     // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
                     let client = reqwest::Client::new();
+                    let mut loop_limit_count = 0;
                     loop {
+                        loop_limit_count += 1;
+                        if loop_limit_count > 5 {
+                            break;
+                        }
                         if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
                           if let Ok(text) = resp.text().await {
                               if let Ok(document) = html::parse(&text) {
@@ -215,7 +220,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                 }
                 return Some(RemoteInfo {
                     version,
-                    update_page_url,
+                    update_page_url: update_page_url.replace("https://", "macappstore://"),
                 });
             } else {
                 return None;
