@@ -1,6 +1,7 @@
 use super::{version_cmp, ALIAS, ARM_SYSTEM_NAME, MASAREAS};
 use rss::Channel;
 use skyscraper::html;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct RemoteInfo {
@@ -24,10 +25,16 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     } else {
         &ALIAS[bundle_id]
     };
-    if let Ok(resp) = reqwest::get(format!(
-        "https://formulae.brew.sh/api/cask/{file_name}.json"
-    ))
-    .await
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap();
+    if let Ok(resp) = client
+        .get(format!(
+            "https://formulae.brew.sh/api/cask/{file_name}.json"
+        ))
+        .send()
+        .await
     {
         if let Ok(text) = resp.text().await {
             if let Ok(json_value) = serde_json::from_str(&text) {
@@ -83,7 +90,11 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
 
 #[tokio::main]
 pub async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
-    if let Ok(content) = reqwest::get(feed_url).await {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap();
+    if let Ok(content) = client.get(feed_url).send().await {
         if let Ok(bytes_content) = content.bytes().await {
             if let Ok(channel) = Channel::read_from(&bytes_content[..]) {
                 let mut items: Vec<rss::Item> = channel.items().into();
@@ -166,10 +177,16 @@ pub fn area_check(bundle_id: &str, is_ios_app: bool) -> RemoteInfo {
 /// 通过 itunes api 查询应用信息
 #[tokio::main]
 async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Option<RemoteInfo> {
-    if let Ok(resp) = reqwest::get(format!(
-        "https://itunes.apple.com/{area_code}/lookup?bundleId={bundle_id}"
-    ))
-    .await
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap();
+    if let Ok(resp) = client
+        .get(format!(
+            "https://itunes.apple.com/{area_code}/lookup?bundleId={bundle_id}"
+        ))
+        .send()
+        .await
     {
         if let Ok(text) = resp.text().await {
             let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
@@ -192,7 +209,6 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                     // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
                     // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
                     // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
-                    let client = reqwest::Client::new();
                     let mut loop_limit_count = 0;
                     loop {
                         loop_limit_count += 1;
@@ -200,22 +216,22 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                             break;
                         }
                         if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
-                          if let Ok(text) = resp.text().await {
-                              if let Ok(document) = html::parse(&text) {
-                                  let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
-                                  if let Ok(nodes) = xpath.apply(&document) {
-                                      if let Some(doc_node) = nodes.get(0) {
-                                          if let Some(text) = doc_node.get_text(&document) {
-                                              if let Some(last) = text.split(' ').last() {
-                                                  version = last.to_string();
-                                                  break;
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
+                            if let Ok(text) = resp.text().await {
+                                if let Ok(document) = html::parse(&text) {
+                                    let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
+                                    if let Ok(nodes) = xpath.apply(&document) {
+                                        if let Some(doc_node) = nodes.get(0) {
+                                            if let Some(text) = doc_node.get_text(&document) {
+                                                if let Some(last) = text.split(' ').last() {
+                                                    version = last.to_string();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 return Some(RemoteInfo {
