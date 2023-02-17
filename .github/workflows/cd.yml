@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Setup toolchain
+        run: |
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin
+
+      - name: Build binary
+        run: cargo build --release
+        env:
+          RUST_BACKTRACE: 1
+
+      - name: Strip binary
+        run: strip "target/release/appcu"
+
+      - name: Test binary
+        run: |
+         ./target/release/appcu -V
+      
+      - name: Build archive
+        shell: bash
+        run: tar -czf appcu.tar.gz -C target/release/ appcu
+
+      - name: Set SHA
+        if: matrix.os == 'macos-latest'
+        id: shasum
+        run: |
+          echo ::set-output name=sha::"$(shasum -a 256 ./appcu.tar.gz | awk '{printf $1}')"
+
+      - name: Extract release notes
+        id: release_notes
+        uses: ffurrer2/extract-release-notes@v1
+          
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: ${{ steps.release_notes.outputs.release_notes }}
+          prerelease: ${{ contains(github.ref, '-') }}
+          files: |
+            appcu.tar.gz
+
+      - name: Bump homebrew-core formula
+        uses: mislav/bump-homebrew-formula-action@v2
+        if: "!contains(github.ref, '-')" 
+        with:
+          formula-name: appcu
+          base-branch: master
+          commit-message: |
+            {{formulaName}} {{version}}
+
+            Created by https://github.com/mislav/bump-homebrew-formula-action
+        env:
+          COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
