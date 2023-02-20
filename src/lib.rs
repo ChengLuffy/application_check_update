@@ -51,8 +51,11 @@ pub fn check_all() {
 /// 根据应用类型查询更新并输出
 fn check_update(app_info: AppInfo) {
     let check_update_type = &app_info.check_update_type;
-    let mut remote_info: RemoteInfo;
-    loop {
+    let mut remote_info: RemoteInfo = RemoteInfo {
+        version: "-1".to_string(),
+        update_page_url: "".to_string(),
+    };
+    for _ in 0..5 {
         remote_info = match check_update_type {
             CheckUpType::Mas {
                 bundle_id,
@@ -65,14 +68,11 @@ fn check_update(app_info: AppInfo) {
             } => request::homebrew_check(app_name, bundle_id),
             // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
         };
-        if &remote_info.version == "-1" {
-            continue;
-            // break;
-        } else {
+        if remote_info.version != "-1".to_string() {
             break;
         }
     }
-    if remote_info.version.is_empty() {
+    if remote_info.version == "-1".to_string() {
         println!("+++++");
         println!("{}", app_info.name);
         println!("{}", app_info.check_update_type);
