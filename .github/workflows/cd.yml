@@ -72,12 +72,9 @@ jobs:
         uses: mislav/bump-homebrew-formula-action@v2
         if: "!contains(github.ref, '-')" 
         with:
-          formula-path: chengluffy/appcu
+          homebrew-tap: chengluffy/appcu
           formula-name: appcu
           base-branch: main
-          commit-message: |
-            {{formulaName}} {{version}}
-
-            Created by https://github.com/mislav/bump-homebrew-formula-action
+          download-url: https://github.com/chengluffy/application_check_update/releases/download/${{ steps.get_version.outputs.version }}/gitui-mac.tar.gz
         env:
           COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
