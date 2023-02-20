@@ -74,7 +74,5 @@ jobs:
         with:
           homebrew-tap: chengluffy/homebrew-appcu
           formula-name: appcu
-          base-branch: main
-          download-url: https://github.com/chengluffy/application_check_update/releases/download/${{ steps.get_version.outputs.version }}/appcu.tar.gz
         env:
           COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
