@@ -68,11 +68,11 @@ fn check_update(app_info: AppInfo) {
             } => request::homebrew_check(app_name, bundle_id),
             // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
         };
-        if remote_info.version != "-1".to_string() {
+        if remote_info.version != *"-1" {
             break;
         }
     }
-    if remote_info.version == "-1".to_string() {
+    if remote_info.version == *"-1" {
         println!("+++++");
         println!("{}", app_info.name);
         println!("{}", app_info.check_update_type);
