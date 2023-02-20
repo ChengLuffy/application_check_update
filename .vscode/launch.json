@@ -91,7 +91,25 @@
           "kind": "bin"
         }
       },
-      "args": ["/Applications/SF Symbols.app/", "/Applications/flameshot.app/", "/Applications/PlayCover.app/"],
+      "args": ["/Applications/SF Symbols.app/", "/Applications/flameshot.app/", "/Applications/PlayCover.app/", "/Applications/CodeEdit.app/"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'appcu'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=appcu",
+          "--package=appcu"
+        ],
+        "filter": {
+          "name": "appcu",
+          "kind": "bin"
+        }
+      },
+      "args": [],
       "cwd": "${workspaceFolder}"
     },
     {
