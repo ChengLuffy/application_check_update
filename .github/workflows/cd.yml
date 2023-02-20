@@ -72,8 +72,9 @@ jobs:
         uses: mislav/bump-homebrew-formula-action@v2
         if: "!contains(github.ref, '-')" 
         with:
+          formula-path: chengluffy/appcu
           formula-name: appcu
-          base-branch: master
+          base-branch: main
           commit-message: |
             {{formulaName}} {{version}}
 
