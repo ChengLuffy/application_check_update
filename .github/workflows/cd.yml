@@ -72,7 +72,7 @@ jobs:
         uses: mislav/bump-homebrew-formula-action@v2
         if: "!contains(github.ref, '-')" 
         with:
-          homebrew-tap: chengluffy/appcu
+          homebrew-tap: chengluffy/homebrew-appcu
           formula-name: appcu
           base-branch: main
           download-url: https://github.com/chengluffy/application_check_update/releases/download/${{ steps.get_version.outputs.version }}/appcu.tar.gz
