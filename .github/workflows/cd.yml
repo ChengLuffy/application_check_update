@@ -45,11 +45,13 @@ jobs:
           RUST_BACKTRACE: 1
 
       - name: Strip binary
-        run: strip "target/release/appcu"
+        run: |
+          strip "target/x86_64-apple-darwin/release/appcu"
+          strip "target/aarch64-apple-darwin/release/appcu"
 
       - name: Test binary
         run: |
-         ./target/release/appcu -V
+         ./target/x86_64-apple-darwin/release/appcu -V
       
       - name: Build archive
         shell: bash
