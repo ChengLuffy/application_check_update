@@ -22,42 +22,42 @@ jobs:
         id: get_version
         run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
 
-      # - name: Install Rust
-      #   uses: actions-rs/toolchain@v1.0.6
-      #   with:
-      #     toolchain: stable
-      #     profile: minimal
-      #     override: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
 
-      # - name: Setup toolchain
-      #   run: |
-      #     rustup target add x86_64-apple-darwin
-      #     rustup target add aarch64-apple-darwin
+      - name: Setup toolchain
+        run: |
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin
 
-      # - name: Build binary for x86_64-apple-darwin
-      #   run: cargo build --release --target x86_64-apple-darwin
-      #   env:
-      #     RUST_BACKTRACE: 1
+      - name: Build binary for x86_64-apple-darwin
+        run: cargo build --release --target x86_64-apple-darwin
+        env:
+          RUST_BACKTRACE: 1
 
-      # - name: Build binary for aarch64-apple-darwin
-      #   run: cargo build --release --target aarch64-apple-darwin
-      #   env:
-      #     RUST_BACKTRACE: 1
+      - name: Build binary for aarch64-apple-darwin
+        run: cargo build --release --target aarch64-apple-darwin
+        env:
+          RUST_BACKTRACE: 1
 
-      # - name: Strip binary
-      #   run: |
-      #     strip "target/x86_64-apple-darwin/release/appcu"
-      #     strip "target/aarch64-apple-darwin/release/appcu"
+      - name: Strip binary
+        run: |
+          strip "target/x86_64-apple-darwin/release/appcu"
+          strip "target/aarch64-apple-darwin/release/appcu"
 
-      # - name: Test binary
-      #   run: |
-      #    ./target/x86_64-apple-darwin/release/appcu -V
+      - name: Test binary
+        run: |
+         ./target/x86_64-apple-darwin/release/appcu -V
       
-      # - name: Build archive
-      #   shell: bash
-      #   run: |
-      #    tar -czf appcu-x86_64-apple-darwin.tar.gz -C target/x86_64-apple-darwin/release/ appcu
-      #    tar -czf appcu-aarch64-apple-darwin.tar.gz -C target/aarch64-apple-darwin/release/ appcu
+      - name: Build archive
+        shell: bash
+        run: |
+         tar -czf appcu-x86_64-apple-darwin.tar.gz -C target/x86_64-apple-darwin/release/ appcu
+         tar -czf appcu-aarch64-apple-darwin.tar.gz -C target/aarch64-apple-darwin/release/ appcu
 
       - name: Set SHA
         if: matrix.os == 'macos-latest'
@@ -74,9 +74,9 @@ jobs:
         with:
           body: ${{ steps.release_notes.outputs.release_notes }}
           prerelease: ${{ contains(github.ref, '-') }}
-          # files: |
-          #   appcu-x86_64-apple-darwin.tar.gz
-          #   appcu-aarch64-apple-darwin.tar.gz
+          files: |
+            appcu-x86_64-apple-darwin.tar.gz
+            appcu-aarch64-apple-darwin.tar.gz
 
       - name: Bump homebrew-core formula
         uses: mislav/bump-homebrew-formula-action@v2
@@ -84,6 +84,7 @@ jobs:
         with:
           homebrew-tap: chengluffy/homebrew-appcu
           formula-name: appcu
-          download-url: https://github.com/ChengLuffy/application_check_update/archive/${{ steps.get_version.outputs.version }}.tar.gz
+          download-url: https://github.com/ChengLuffy/application_check_update/archive/refs/tags/${{ steps.get_version.outputs.version }}.tar.gz
+          create-pullrequest: true
         env:
           COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
