@@ -89,9 +89,7 @@ jobs:
         env:
           COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
 
-  test_install:
-    name: Test appcu-install.sh
-    runs-on: macos-latest
-    steps: 
-      - run: sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)
-      - run: appcu --version
+      - name: Test appcu-install.sh 
+        run: |
+          sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)"
+          appcu --version
