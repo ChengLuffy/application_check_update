@@ -15,5 +15,5 @@ jobs:
     name: Test appcu-install.sh
     runs-on: macos-latest
     steps: 
-      - run: sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)
+      - run: sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)"
       - run: appcu --version
