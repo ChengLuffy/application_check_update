@@ -3,8 +3,18 @@ name: Continuous integration
 on:
   push:
     branches: [ "master" ]
+    paths: 
+      - "**.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "ci.yml"
   pull_request:
     branches: [ "master" ]
+    paths: 
+      - "**.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "ci.yml"
 
 jobs:
   check:
