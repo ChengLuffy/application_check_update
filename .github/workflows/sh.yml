@@ -1,0 +1,19 @@
+name: Test appcu-install.sh
+
+on:
+  push:
+    branches: [ "master" ]
+    paths: 
+      - "appcu-install.sh"
+  pull_request:
+    branches: [ "master" ]
+    paths: 
+      - "appcu-install.sh"
+
+jobs:
+  test_install:
+    name: Test appcu-install.sh
+    runs-on: macos-latest
+    steps: 
+      - run: sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)
+      - run: appcu --version
