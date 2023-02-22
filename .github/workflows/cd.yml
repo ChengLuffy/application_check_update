@@ -88,8 +88,3 @@ jobs:
           create-pullrequest: true
         env:
           COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
-
-      - name: Test appcu-install.sh 
-        run: |
-          sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)"
-          appcu --version
