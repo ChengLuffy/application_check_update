@@ -7,14 +7,14 @@ on:
       - "**.rs"
       - "Cargo.toml"
       - "Cargo.lock"
-      - "ci.yml"
+      - "**/ci.yml"
   pull_request:
     branches: [ "master" ]
     paths: 
       - "**.rs"
       - "Cargo.toml"
       - "Cargo.lock"
-      - "ci.yml"
+      - "**/ci.yml"
 
 jobs:
   check:

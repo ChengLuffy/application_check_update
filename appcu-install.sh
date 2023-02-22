@@ -4,6 +4,7 @@
 USER=chengluffy
 REPO=application_check_update
 
+# Get arch
 if [[ $(uname -m) == "arm64" ]]; then
   arch="aarch64"
 else
@@ -23,6 +24,8 @@ curl -L -o latest.tar.gz $download_url
 
 # Extract the release asset
 tar -zxvf latest.tar.gz
+
+# Mv to /usr/local/bin/
 sudo mv appcu /usr/local/bin/
 
 # Cleanup by deleting the downloaded archive
