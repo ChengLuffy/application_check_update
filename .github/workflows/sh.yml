@@ -5,10 +5,12 @@ on:
     branches: [ "master" ]
     paths: 
       - "appcu-install.sh"
+      - "**/sh.yml"
   pull_request:
     branches: [ "master" ]
     paths: 
       - "appcu-install.sh"
+      - "**/sh.yml"
 
 jobs:
   test_install:
