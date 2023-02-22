@@ -1,26 +1,23 @@
 # macOS 应用检查更新
 
+一个用于检查 macOS 应用更新的 CLI 工具
+
+## 使用说明
+
+### 开始检查应用更新
+
+对所有 **/Applications** 路径下应用检查更新：
 ```
-macOS 应用检查更新
-
-Usage:
-  运行 `appcu` 对所有 `/Applications` 文件夹下的应用进行检查
-  运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查
-
-Commands:
-  ignore           忽略对应的应用
-  alias            设置 HomeBrew 查询方式的应用别名
-  generate_config  简写: `gc`，生成配置文件，详情请查看 `appcu help generate_config`
-  help             Print this message or the help of the given subcommand
-
-Options:
-  -h, --help     Print help information
-  -V, --version  Print version information
+appcu
 ```
 
+对特定路径应用检查更新：
+```
+appcu /Applications/xx.app /Applications/yy.app
+```
 
-### 使用说明
-#### `generate_config`
+### 配置文件相关
+#### generate_config
 简写: `gc`，用于生成配置文件，详情请查看 `appcu help generate_config`
 
 使用:
@@ -38,7 +35,7 @@ Options:
 
 - ignore: 有些应用不用查询，或者无法查询（例如已经下架、未被收录在 HomeBrew 等），可以在这里设置忽略，例 Safari Technology Preview 无法通过任何手段查询更新，使用 `appcu ignore /Applications/Safari\ Technology\ Preview.app/` 进行忽略
 
-#### `ignore`
+#### ignore
 忽略对应的应用
 
 使用:
@@ -46,8 +43,7 @@ Options:
 appcu ignore /Applications/xx.app /Applications/yy.app
 ```
 
-
-#### `alias`
+#### alias
 设置 HomeBrew 查询方式的应用别名
 
 使用:
@@ -55,36 +51,27 @@ appcu ignore /Applications/xx.app /Applications/yy.app
 appcu alias app.bundle.id alias_name
 ```
 
-### 安装
+## 安装
 
-#### 使用 Homebrew
+### 使用 Homebrew
+
 `brew install chengluffy/appcu/appcu`
 
 或者 `brew tap chengluffy/appcu` 然后 `brew install appcu`.
 
-#### 使用脚本
+### 使用脚本
+
+脚本内容: [appcu-install.sh](appcu-install.sh)
 ```
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)"
 ```
 
-#### 自行编译
+### 自行编译
 需要 `rust` 环境
-```
-// 克隆仓库
-git clone https://github.com/ChengLuffy/application_check_update.git appcu
-
-// 进入文件夹
-cd appcu
-
-// 编译发行版本，如果没有安装 Rust 环境，请先搜索安装
-cargo build --release
-
-// 拷贝到任何一个 $PATH 包含的文件夹下
-cp target/release/appcu /usr/local/bin/
-
-// 查看是否运行正常
-appcu -h
-```
+- 克隆仓库: `git clone https://github.com/ChengLuffy/application_check_update.git appcu && cd appcu`
+- 编译发行版本: `cargo build --release`
+- 拷贝到任何一个 $PATH 包含的文件夹下: `cp target/release/appcu /usr/local/bin/`
+- 查看是否运行正常: `appcu -h`
 
 ## 为什么
 
