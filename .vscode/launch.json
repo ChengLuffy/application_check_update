@@ -25,7 +25,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu ignore /Applications/Music.app/'",
+      "name": "Debug executable 'appcu ignore /Applications/CodeEdit.app/'",
       "cargo": {
         "args": [
           "build",
@@ -37,7 +37,7 @@
           "kind": "bin"
         }
       },
-      "args": ["ignore /System/Applications/Music.app/"],
+      "args": ["ignore", "/Applications/CodeEdit.app/", "/System/Applications/Music.app/"],
       "cwd": "${workspaceFolder}"
     },
     {

@@ -18,9 +18,9 @@ lazy_static! {
 }
 
 /// 检查指定路径下的应用
-pub fn check_some(paths: Vec<&str>) {
+pub fn check_some(paths: Vec<String>) {
     for item in paths {
-        let path = Path::new(item);
+        let path = Path::new(&item);
         let buf = path.to_path_buf();
         if let Some(app_info) = local::check_app_info(&buf) {
             check_update(app_info)

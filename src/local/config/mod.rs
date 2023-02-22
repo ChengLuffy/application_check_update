@@ -38,21 +38,21 @@ pub fn alias(bundle_id: &str, alias_name: &str) {
             .insert(bundle_id.to_string(), alias_name.to_string());
     }
     write_config(config);
-    println!("设置成功")
+    println!("Done!")
 }
 
 /// 忽略一些应用
-pub fn ignore_some(bundle_id_vec: Vec<&str>) {
+pub fn ignore_some(bundle_id_vec: Vec<String>) {
     let mut config = get_config().unwrap_or_default();
     for item in bundle_id_vec {
-        if let Some(app_info) = check_app_info(std::path::Path::new(item)) {
+        if let Some(app_info) = check_app_info(std::path::Path::new(&item)) {
             if !check_is_ignore(&app_info.bundle_id) {
                 config.ignore.push(app_info.bundle_id)
             }
         }
     }
     write_config(config);
-    println!("设置成功")
+    println!("Done!")
 }
 
 /// 写入配置文件
@@ -80,7 +80,7 @@ pub async fn generate_config() {
               let mut input_string = String::new();
               println!("已经存在一份配置文件，继续运行会将现有的配置文件重命名并生成一份默认配置文件，是否继续？：(y or ...) ");
               std::io::stdin().read_line(&mut input_string).unwrap();
-              if input_string.to_lowercase() == "y" {
+              if input_string.to_lowercase().trim() == "y" {
                   let start = std::time::SystemTime::now();
                   let since_the_epoch = start
                                           .duration_since(std::time::UNIX_EPOCH)
