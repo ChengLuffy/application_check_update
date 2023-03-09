@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use local::notification::Notification;
 use local::{AppInfo, CheckUpType};
 use request::RemoteInfo;
 use std::{collections::HashMap, fs, path::Path};
@@ -31,6 +32,8 @@ impl CheckOperation {
             let buf = path.to_path_buf();
             if let Some(app_info) = local::check_app_info(&buf) {
                 self.check_update(app_info)
+            } else if self.notification {
+                Notification::new_error_notification(format!("{item} 应用信息读取失败")).post()
             } else {
                 println!("+++++");
                 println!("{item} 应用信息读取失败");
@@ -58,6 +61,7 @@ impl CheckOperation {
                     println!("+++++");
                     println!("{error:?}");
                     println!("+++++\n");
+                    Notification::new_error_notification(format!("{error:?}")).post()
                 }
             });
         }
@@ -89,12 +93,16 @@ impl CheckOperation {
             }
         }
         if remote_info.version == *"-1" {
-            println!("+++++");
-            println!("{}", app_info.name);
-            println!("{}", app_info.check_update_type);
-            println!("local version {}", app_info.short_version);
-            println!("remote version check failed");
-            println!("+++++\n");
+            if self.notification {
+                Notification::new_remote_get_failed(&app_info).post()
+            } else {
+                println!("+++++");
+                println!("{}", app_info.name);
+                println!("{}", app_info.check_update_type);
+                println!("local version {}", app_info.short_version);
+                println!("remote version check failed");
+                println!("+++++\n");
+            }
         }
         // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure
         // FIXME: 版本号也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是
@@ -110,23 +118,41 @@ impl CheckOperation {
         let ordering = cmp_version(local_cmp_version, &remote_info.version, false);
         if ordering.is_lt() {
             // if &remote_info.version != "-2" {
-            println!("=====");
-            println!("{}", app_info.name);
-            if self.verbose {
-                println!("{}", app_info.check_update_type);
+            if self.notification {
+                Notification::new_update_notification(
+                    app_info.name,
+                    local_cmp_version.to_string(),
+                    remote_info.version,
+                    remote_info.update_page_url,
+                )
+                .post()
+            } else {
+                println!("=====");
+                println!("{}", app_info.name);
+                if self.verbose {
+                    println!("{}", app_info.check_update_type);
+                }
+                println!("{local_cmp_version} -> {}", remote_info.version);
+                println!("{}", remote_info.update_page_url);
+                println!("=====\n");
             }
-            println!("local version {local_cmp_version}");
-            println!("remote version {}", remote_info.version);
-            println!("{}", remote_info.update_page_url);
-            println!("=====\n");
         } else if self.verbose {
-            println!("-----");
-            println!("{}", app_info.name);
-            println!("{}", app_info.check_update_type);
-            println!("local version {local_cmp_version}");
-            println!("remote version {}", remote_info.version);
-            println!("{}", remote_info.update_page_url);
-            println!("-----\n");
+            if self.notification {
+                Notification::new_verbose_notification(
+                    &app_info,
+                    local_cmp_version.to_string(),
+                    &remote_info,
+                )
+                .post()
+            } else {
+                println!("-----");
+                println!("{}", app_info.name);
+                println!("{}", app_info.check_update_type);
+                println!("local version {local_cmp_version}");
+                println!("remote version {}", remote_info.version);
+                println!("{}", remote_info.update_page_url);
+                println!("-----\n");
+            }
         }
     }
 }
