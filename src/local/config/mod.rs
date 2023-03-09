@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, ffi::OsString, fs};
 
 use crate::{local::check_app_info, IGNORES};
 
@@ -28,21 +28,28 @@ impl Default for Config {
 }
 
 /// 设置应用别名
-pub fn alias(bundle_id: &str, alias_name: &str) {
-    let mut config = get_config().unwrap_or_default();
-    if let Some(x) = config.alias.get_mut(bundle_id) {
-        *x = alias_name.to_string();
+pub fn alias(app_path: OsString, alias_name: OsString) {
+    if let Some(app_info) = check_app_info(std::path::Path::new(&app_path)) {
+        if let Ok(alias_name) = alias_name.into_string() {
+            let bundle_id = app_info.bundle_id;
+            let mut config = get_config().unwrap_or_default();
+            if let Some(x) = config.alias.get_mut(&bundle_id) {
+                *x = alias_name;
+            } else {
+                config.alias.insert(bundle_id.to_string(), alias_name);
+            }
+            write_config(config);
+            println!("Done!")
+        } else {
+            println!("输入的 alias_name 读取失败")
+        }
     } else {
-        config
-            .alias
-            .insert(bundle_id.to_string(), alias_name.to_string());
+        println!("读取应用信息失败")
     }
-    write_config(config);
-    println!("Done!")
 }
 
 /// 忽略一些应用
-pub fn ignore_some(bundle_id_vec: Vec<String>) {
+pub fn ignore_some(bundle_id_vec: Vec<OsString>) {
     let mut config = get_config().unwrap_or_default();
     for item in bundle_id_vec {
         if let Some(app_info) = check_app_info(std::path::Path::new(&item)) {
