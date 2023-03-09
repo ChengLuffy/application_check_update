@@ -5,7 +5,8 @@ use std::ffi::OsString;
 /// TODO: 提供 terminal-notification 输出
 
 #[derive(Debug, Parser)] // requires `derive` feature
-#[command(name = "appcu")]
+#[command(name = "appcu", version)]
+#[command(author = "chengluffy. <chengluffy@gmail.com>")]
 #[command(about = "macOS 应用检查更新\n运行 `appcu` 对所有 `/Applications/` 文件夹下的应用进行检查\n运行 `appcu /Applications/xx.app /Applications/yy.app` 对特定应用进行检查", long_about = None)]
 #[command(subcommand_required = false)]
 struct Cli {
