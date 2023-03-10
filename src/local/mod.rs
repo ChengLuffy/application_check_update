@@ -1,6 +1,7 @@
 use std::{fmt::Display, path::Path};
 
 pub mod config;
+pub mod notification;
 pub mod plist;
 
 #[derive(Debug)]

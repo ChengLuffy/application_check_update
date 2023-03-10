@@ -17,3 +17,4 @@ dirs = "*"
 threadpool = "1.0"
 rss = { git = "https://github.com/ChengLuffy/rss.git" }
 skyscraper = "0.4.0"    # XPath for HTML web scraping
+clap = { version = "4.1.8", features = ["derive"] }
