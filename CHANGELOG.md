@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## [0.1.4] - 2023-03-10
+### Fixes
+  - 修复一些应用 info.plist 内不存在 CFBundleShortVersionString
+
 ## [0.1.3] - 2023-03-10
 ### Fixes
   - 修复某些应用 Wrapper/iTunesMetadata.plist 内不包括版本号的问题
