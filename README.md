@@ -17,12 +17,12 @@ appcu /Applications/xx.app /Applications/yy.app
 ```
 
 ### 配置文件相关
-#### generate_config
-简写: `gc`，用于生成配置文件，详情请查看 `appcu help generate_config`
+#### generate-config/gc
+简写: `gc`，用于生成配置文件，详情请查看 `appcu help generate-config`
 
 使用:
 ```
- appcu generate_config
+ appcu generate-config
 ```
 
 配置文件路径：`~/.config/appcu/config.yaml`
