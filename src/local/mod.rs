@@ -28,7 +28,7 @@ impl Display for CheckUpType {
                 is_ios_app,
             } => {
                 let temp = if *is_ios_app {
-                    "，这是一个 iOS/iPadOS 应用"
+                    "，这是一个 iOS/iPadOS/Mac-Catalyst 应用"
                 } else {
                     ""
                 };

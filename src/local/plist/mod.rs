@@ -36,7 +36,7 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         .and_then(|dict| dict.get(short_version_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
-    if bundle_id.is_empty() || short_version.is_empty() {
+    if bundle_id.is_empty() || (short_version.is_empty() && version.is_empty()) {
         let info_plist_path = plist_path
             .parent()
             .unwrap()
