@@ -48,8 +48,19 @@ appcu ignore /Applications/xx.app /Applications/yy.app
 
 使用:
 ```
-appcu alias app.bundle.id alias_name
+appcu alias /Applications/xx.app alias_name
 ```
+
+### -n
+使用 `terminal-notifier` 发送检查更新结果，**点击通知后直接下载或跳转到相应页面**
+
+需要预先安装 [`terminal-notifier`](https://github.com/julienXX/terminal-notifier)
+
+### -v
+输出所有详细信息，包括应用信息、应用匹配的检查更新方式、应用最新版本地址、应用版本号，**包括未发现新版本的应用信息**。
+
+### --version/-V
+输出版本信息
 
 ## 安装
 
@@ -70,7 +81,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/applicat
 需要 `rust` 环境
 - 克隆仓库: `git clone https://github.com/ChengLuffy/application_check_update.git appcu && cd appcu`
 - 编译发行版本: `cargo build --release`
-- 拷贝到任何一个 $PATH 包含的文件夹下: `cp target/release/appcu /usr/local/bin/`
+- 拷贝到任何一个 $PATH 包含的文件夹下，例如: `cp target/release/appcu /usr/local/bin/`
 - 查看是否运行正常: `appcu -h`
 
 ## 为什么
