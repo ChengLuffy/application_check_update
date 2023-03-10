@@ -56,6 +56,11 @@ appcu alias /Applications/xx.app alias_name
 
 需要预先安装 [`terminal-notifier`](https://github.com/julienXX/terminal-notifier)
 
+结合 `crontab` 可以实现定时检查更新，例如每天早上10点运行
+```
+0 10 * * * appcu -n
+```
+
 ### -v
 输出所有详细信息，包括应用信息、应用匹配的检查更新方式、应用最新版本地址、应用版本号，**包括未发现新版本的应用信息**。
 
