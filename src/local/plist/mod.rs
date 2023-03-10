@@ -26,15 +26,6 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         .and_then(|dict| dict.get(bundle_id_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
-    if bundle_id.is_empty() {
-        let info_plist_path = plist_path
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("WrappedBundle/Info.plist");
-        return read_plist_info(&info_plist_path);
-    }
     let version = value
         .as_dictionary()
         .and_then(|dict| dict.get(version_key_str))
@@ -45,6 +36,15 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
         .and_then(|dict| dict.get(short_version_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
+    if bundle_id.is_empty() || short_version.is_empty() {
+        let info_plist_path = plist_path
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("WrappedBundle/Info.plist");
+        return read_plist_info(&info_plist_path);
+    }
     let feed_url_option = value
         .as_dictionary()
         .and_then(|dict| dict.get(feed_url_key))
