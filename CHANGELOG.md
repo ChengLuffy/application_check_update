@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## [0.1.5] - 2023-03-15
+### Fixes
+  - 修复无法正常运行在 crontab 的问题
+  - 修复 rss 依赖警告的问题
+
 ## [0.1.4] - 2023-03-10
 ### Fixes
   - 修复一些应用 info.plist 内不存在 CFBundleShortVersionString

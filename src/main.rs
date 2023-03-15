@@ -2,7 +2,6 @@ use clap::{arg, Parser, Subcommand};
 use std::ffi::OsString;
 
 /// TODO: 提供 json 格式输出
-/// TODO: 提供 terminal-notification 输出
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "appcu", version)]
@@ -46,12 +45,12 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     if cli.notification {
-        if let Ok(output) = std::process::Command::new("which")
+        if let Ok(output) = std::process::Command::new("type")
             .arg("terminal-notifier")
             .output()
         {
             if output.stdout.is_empty() {
-                panic!("未能找到 `terminal-notifier`，以系统通知的形式输出检查更新结果需要安装 `terminal-notifier`")
+                panic!("未能找到 `terminal-notifier`，以系统通知的形式输出检查更新结果需要安装 `terminal-notifier`\n{:?}", output.stderr)
             }
         }
     }

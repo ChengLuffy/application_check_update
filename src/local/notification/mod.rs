@@ -2,6 +2,7 @@ use crate::request::RemoteInfo;
 
 use super::AppInfo;
 
+#[derive(Debug)]
 pub struct Notification {
     pub title: String,
     pub subtitle: String,
@@ -55,8 +56,27 @@ impl Notification {
         }
     }
     pub fn post(&self) {
+        let mut terminal_notifier_path: String = "terminal-notifier".to_string();
+        if let Ok(output) = std::process::Command::new("type")
+            .arg("terminal-notifier")
+            .output()
+        {
+            let stdout = output.stdout;
+            if stdout.is_empty() {
+                panic!("未能找到 `terminal-notifier`，以系统通知的形式输出检查更新结果需要安装 `terminal-notifier`")
+            } else {
+                let path_string = String::from_utf8_lossy(&stdout).to_string();
+                terminal_notifier_path = path_string
+                    .trim()
+                    .to_string()
+                    .split(' ')
+                    .last()
+                    .unwrap_or_default()
+                    .to_string();
+            }
+        }
         let output = match &self.open {
-            Some(open) => std::process::Command::new("terminal-notifier")
+            Some(open) => std::process::Command::new(terminal_notifier_path)
                 .arg("-title")
                 .arg(&self.title)
                 .arg("-subtitle")
@@ -66,7 +86,7 @@ impl Notification {
                 .arg("-open")
                 .arg(open)
                 .output(),
-            None => std::process::Command::new("terminal-notifier")
+            None => std::process::Command::new(terminal_notifier_path)
                 .arg("-title")
                 .arg(&self.title)
                 .arg("-subtitle")
@@ -78,7 +98,7 @@ impl Notification {
         match output {
             Ok(_) => {}
             Err(err) => match &err.kind() {
-                std::io::ErrorKind::NotFound => println!("未能找到 `terminal-notifier`"),
+                std::io::ErrorKind::NotFound => println!("未能找到 `terminal-notifier` {:?}", self),
                 _ => println!("{:?}", err),
             },
         }
