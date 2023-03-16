@@ -44,16 +44,6 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    if cli.notification {
-        if let Ok(output) = std::process::Command::new("type")
-            .arg("terminal-notifier")
-            .output()
-        {
-            if output.stdout.is_empty() {
-                panic!("未能找到 `terminal-notifier`，以系统通知的形式输出检查更新结果需要安装 `terminal-notifier`\n{:?}", output.stderr)
-            }
-        }
-    }
     match cli.command {
         Some(Commands::Ignore { app_paths }) => appcu::local::config::ignore_some(app_paths),
         Some(Commands::Alias {

@@ -1,4 +1,4 @@
-use crate::request::RemoteInfo;
+use crate::{request::RemoteInfo, TERMINAL_NOTIFIER_PATH};
 
 use super::AppInfo;
 
@@ -56,24 +56,9 @@ impl Notification {
         }
     }
     pub fn post(&self) {
-        let mut terminal_notifier_path: String = "terminal-notifier".to_string();
-        if let Ok(output) = std::process::Command::new("type")
-            .arg("terminal-notifier")
-            .output()
-        {
-            let stdout = output.stdout;
-            if stdout.is_empty() {
-                panic!("未能找到 `terminal-notifier`，以系统通知的形式输出检查更新结果需要安装 `terminal-notifier`")
-            } else {
-                let path_string = String::from_utf8_lossy(&stdout).to_string();
-                terminal_notifier_path = path_string
-                    .trim()
-                    .to_string()
-                    .split(' ')
-                    .last()
-                    .unwrap_or_default()
-                    .to_string();
-            }
+        let mut terminal_notifier_path: String = TERMINAL_NOTIFIER_PATH.to_string();
+        if terminal_notifier_path.is_empty() {
+            terminal_notifier_path = "terminal-notifier".to_string()
         }
         let output = match &self.open {
             Some(open) => std::process::Command::new(terminal_notifier_path)

@@ -15,6 +15,7 @@ lazy_static! {
     static ref ALIAS: HashMap<String, String> = local::config::get_alias_config();
     static ref MASAREAS: Vec<String> = local::config::get_mas_areas();
     static ref ARM_SYSTEM_NAME: String = local::plist::get_arm_system_version();
+    static ref TERMINAL_NOTIFIER_PATH: String = local::config::get_terminal_notifier_path();
     static ref THREADNUMS: usize = local::config::get_thread_nums();
 }
 

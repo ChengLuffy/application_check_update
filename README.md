@@ -30,9 +30,9 @@ appcu /Applications/xx.app /Applications/yy.app
 配置文件字段说明：
 
 - threads_num: 并行查询数量，默认 5，太多会导致错误
+- terminal_notifier_path: terminal-notifier 的安装路径，使用 `--notification/-n` 前需要预先配置该字段
 - mas_area: 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加作为备选查询区域
 - alias: HomeBrew 查询时，是将应用名称直接查寻，但是某些应用无法直接查到，可以在这里设置查询的别名。例如：wps，通过 `brew search wpsoffice` 选择 `wpsoffice-cn`，使用 `appcu alias /Applications/wpsoffice.app/ wpsoffice-cn` 进行映射
-
 - ignore: 有些应用不用查询，或者无法查询（例如已经下架、未被收录在 HomeBrew 等），可以在这里设置忽略，例 Safari Technology Preview 无法通过任何手段查询更新，使用 `appcu ignore /Applications/Safari\ Technology\ Preview.app/` 进行忽略
 
 #### ignore

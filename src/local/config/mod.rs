@@ -6,6 +6,7 @@ use crate::{local::check_app_info, IGNORES};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub threads_num: usize,
+    pub terminal_notifier_path: String,
     pub mas_area: Vec<String>,
     pub alias: HashMap<String, String>,
     pub ignore: Vec<String>,
@@ -20,6 +21,7 @@ impl Default for Config {
         ];
         Self {
             threads_num: 5,
+            terminal_notifier_path: Default::default(),
             mas_area: Default::default(),
             alias: Default::default(),
             ignore,
@@ -156,6 +158,12 @@ pub fn check_is_ignore(bundle_id: &str) -> bool {
 pub fn get_mas_areas() -> Vec<String> {
     let conf = get_config();
     conf.unwrap_or_default().mas_area
+}
+
+/// 获取配置文件中设置的并发查询数量
+pub fn get_terminal_notifier_path() -> String {
+    let conf = get_config();
+    conf.unwrap_or_default().terminal_notifier_path
 }
 
 /// 获取配置文件中设置的并发查询数量

@@ -1,6 +1,12 @@
 # CHANGELOG
 
 ## Unreleased
+### Fixes
+  - 由于 crontab 环境原因，移除通过 `type` 或 `which` 检测 `terminal-notifier` 安装路径的方式
+
+### Added
+  - 配置文件新增 `terminal_notifier_path` 字段，供调用 `terminal-notifier` 时使用
+  - 
 
 ## [0.1.5] - 2023-03-15
 ### Fixes

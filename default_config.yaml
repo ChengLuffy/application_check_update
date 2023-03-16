@@ -1,6 +1,9 @@
 # 并发查询应用数量，默认5
 threads_num: 5
 
+# terminal-notifier 的安装路径
+terminal_notifier_path:
+
 # 用于 App Store 备选区域查询，默认是当前登陆 Mac App Store 的账号区域，如果有一些应用是其他区域专属，可以在此添加
 mas_area:
   # - cn
