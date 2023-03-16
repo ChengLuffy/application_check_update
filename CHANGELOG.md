@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## Unreleased
+
+## [0.1.5] - 2023-03-15
 ### Fixes
   - 由于 crontab 环境原因，移除通过 `type` 或 `which` 检测 `terminal-notifier` 安装路径的方式
 
