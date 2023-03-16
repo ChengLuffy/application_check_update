@@ -81,6 +81,18 @@ pub fn generate_config() {
         "com.jetbrains.intellij.ce".to_string(),
         "intellij-idea-ce".to_string(),
     );
+    let mut terminal_notifier_path: String = "".to_string();
+    if let Ok(output) = std::process::Command::new("which")
+        .arg("terminal-notifier")
+        .output()
+    {
+        let stdout = output.stdout;
+        if !stdout.is_empty() {
+            let path_string = String::from_utf8_lossy(&stdout).to_string();
+            terminal_notifier_path = path_string.trim().to_string();
+        }
+    }
+    default_config.terminal_notifier_path = terminal_notifier_path;
     let config_content = serde_yaml::to_string(&default_config).expect("配置转换为文本错误");
     let fmt_content = config_content.replace("\n-", "\n  -");
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
@@ -159,7 +171,7 @@ pub fn get_mas_areas() -> Vec<String> {
     conf.unwrap_or_default().mas_area
 }
 
-/// 获取配置文件中设置的并发查询数量
+/// 获取配置文件中设置的 terminal-notifier 的安装路径
 pub fn get_terminal_notifier_path() -> String {
     let conf = get_config();
     conf.unwrap_or_default().terminal_notifier_path

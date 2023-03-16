@@ -7,6 +7,7 @@
 ### Added
   - 配置文件新增 `terminal_notifier_path` 字段，供调用 `terminal-notifier` 时使用
   - `generate-config/gc` 自动生成默认配置，不再从网络获取默认配置
+  - 生成默认配置时尝试读取 `terminal-notifier` 安装路径
 
 ## [0.1.5] - 2023-03-15
 ### Fixes
