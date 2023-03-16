@@ -75,42 +75,41 @@ fn write_config(config: Config) {
 }
 
 /// 生成配置文件
-#[tokio::main]
-pub async fn generate_config() {
-    if let Ok(content) = reqwest::get("https://raw.githubusercontent.com/ChengLuffy/application_check_update/master/default_config.yaml").await {
-      if let Ok(text_content) = content.text().await {
-          let mut path = dirs::home_dir().expect("未能定位到用户目录");
-          path.push(".config/appcu");
-          if !path.exists() {
-              fs::create_dir_all(&path).expect("创建文件夹错误");
-          }
-          path.push("config.yaml");
-          if path.exists() {
-              let mut input_string = String::new();
-              println!("已经存在一份配置文件，继续运行会将现有的配置文件重命名并生成一份默认配置文件，是否继续？：(y or ...) ");
-              std::io::stdin().read_line(&mut input_string).unwrap();
-              if input_string.to_lowercase().trim() == "y" {
-                  let start = std::time::SystemTime::now();
-                  let since_the_epoch = start
-                                          .duration_since(std::time::UNIX_EPOCH)
-                                          .expect("时间戳获取失败");
-                  let ms = since_the_epoch.as_secs() as i64 * 1000i64 + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
-                  let mut new_path = dirs::home_dir().unwrap();
-                  let new_name = format!(".config/appcu/config.yaml_bk_{ms}");
-                  new_path.push(new_name);
-                  fs::rename(&path, new_path).expect("原有配置文件重命名错误");
-              } else {
-                  println!("用户取消默认配置文件生成");
-                  return;
-              }
-          }
-          fs::write(path, text_content).expect("配置文件写入错误")
-      } else {
-          println!("默认配置解码失败")
-      }
-  } else {
-      println!("获取默认配置失败")
-  }
+pub fn generate_config() {
+    let mut default_config = Config::default();
+    default_config.alias.insert(
+        "com.jetbrains.intellij.ce".to_string(),
+        "intellij-idea-ce".to_string(),
+    );
+    let config_content = serde_yaml::to_string(&default_config).expect("配置转换为文本错误");
+    let fmt_content = config_content.replace("\n-", "\n  -");
+    let mut path = dirs::home_dir().expect("未能定位到用户目录");
+    path.push(".config/appcu");
+    if !path.exists() {
+        fs::create_dir_all(&path).expect("创建文件夹错误");
+    }
+    path.push("config.yaml");
+    if path.exists() {
+        let mut input_string = String::new();
+        println!("已经存在一份配置文件，继续运行会将现有的配置文件重命名并生成一份默认配置文件，是否继续？：(y or ...) ");
+        std::io::stdin().read_line(&mut input_string).unwrap();
+        if input_string.to_lowercase().trim() == "y" {
+            let start = std::time::SystemTime::now();
+            let since_the_epoch = start
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("时间戳获取失败");
+            let ms = since_the_epoch.as_secs() as i64 * 1000i64
+                + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
+            let mut new_path = dirs::home_dir().unwrap();
+            let new_name = format!(".config/appcu/config.yaml_bk_{ms}");
+            new_path.push(new_name);
+            fs::rename(&path, new_path).expect("原有配置文件重命名错误");
+        } else {
+            println!("用户取消默认配置文件生成");
+            return;
+        }
+    }
+    fs::write(path, fmt_content).expect("配置文件写入错误")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
