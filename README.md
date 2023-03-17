@@ -51,7 +51,7 @@ appcu ignore /Applications/xx.app /Applications/yy.app
 appcu alias /Applications/xx.app alias_name
 ```
 
-### -n
+#### -n
 使用 `terminal-notifier` 发送检查更新结果，**点击通知后直接下载或跳转到相应页面**
 
 需要预先安装 [`terminal-notifier`](https://github.com/julienXX/terminal-notifier)
@@ -61,10 +61,10 @@ appcu alias /Applications/xx.app alias_name
 0 10 * * * appcu -n
 ```
 
-### -v
+#### -v
 输出所有详细信息，包括应用信息、应用匹配的检查更新方式、应用最新版本地址、应用版本号，**包括未发现新版本的应用信息**。
 
-### --version/-V
+#### --version/-V
 输出版本信息
 
 ## 安装
