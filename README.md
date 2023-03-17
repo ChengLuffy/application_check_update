@@ -133,12 +133,12 @@ https://formulae.brew.sh/api/cask/{app_name}.json
 
 app_name 其实就是应用的名称，需要将大写字母转换为小写字母，同时用 `-` 替换空格
 
-需要注意的是，很多应用在 Hombrew-Cask 的名称和用户机器上的名称不一致，所以 appcu 提供了设置应用别名的方式
+需要注意的是，很多应用在 Hombrew-Cask 的名称和用户机器上的名称不一致，所以 appcu 提供了设置应用别名的方式，见[alias](#alias)
 
 有些应用在 Apple Silicon 和 Intel 平台发布的是两个安装包，可以通过解析 Homebrew-Cask API 结果中的 `variations` 字段内容确认应该下载哪个版本
 
 ### 通过上述方法查询不到版本信息的应用
-appcu 提供了忽略检查更新的方式
+appcu 提供了忽略检查更新的方式，见[ignore](#ignore)
 
 ## 为什么
 
