@@ -23,6 +23,7 @@ lazy_static! {
 pub struct CheckOperation {
     pub notification: bool,
     pub verbose: bool,
+    pub open_by_app: bool,
 }
 
 impl CheckOperation {
@@ -32,7 +33,7 @@ impl CheckOperation {
             let path = Path::new(&item);
             let buf = path.to_path_buf();
             if let Some(app_info) = local::check_app_info(&buf) {
-                self.check_update(app_info)
+                self.check_update(app_info, path)
             } else if self.notification {
                 Notification::new_error_notification(format!("{item} 应用信息读取失败")).post()
             } else {
@@ -55,7 +56,7 @@ impl CheckOperation {
                 Ok(path) => {
                     let app_info = local::check_app_info(&path.path());
                     if let Some(info) = app_info {
-                        temp_self.check_update(info);
+                        temp_self.check_update(info, &path.path());
                     }
                 }
                 Err(error) => {
@@ -70,7 +71,7 @@ impl CheckOperation {
     }
 
     /// 根据应用类型查询更新并输出
-    pub fn check_update(&self, app_info: AppInfo) {
+    pub fn check_update(&self, app_info: AppInfo, path: &Path) {
         let check_update_type = &app_info.check_update_type;
         let mut remote_info: RemoteInfo = RemoteInfo {
             version: "-1".to_string(),
@@ -108,8 +109,7 @@ impl CheckOperation {
         // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure
         // FIXME: 版本号也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是
         // FIXME: homebrew 的接口也有点问题，比如 Version 是 4.0，通过接口查询会变成 4，比如有些应用本地查到是 7.0.2，接口查到是 7.0.2.7，但其实是一个版本
-        let local_cmp_version = if !app_info.short_version.is_empty()
-            && !matches!(app_info.check_update_type, CheckUpType::Sparkle(_))
+        let local_cmp_version = if !app_info.short_version.is_empty() && !app_info.is_sparkle_app()
             || (remote_info.version.contains('.') && app_info.short_version.contains('.'))
         {
             &app_info.short_version
@@ -121,10 +121,15 @@ impl CheckOperation {
             // if &remote_info.version != "-2" {
             if self.notification {
                 Notification::new_update_notification(
-                    app_info.name,
+                    app_info.name.clone(),
                     local_cmp_version.to_string(),
                     remote_info.version,
-                    remote_info.update_page_url,
+                    if self.open_by_app && !&app_info.is_mas_app() {
+                        format!("file://{}", path.to_str().unwrap_or_default())
+                    } else {
+                        remote_info.update_page_url
+                    },
+                    self.open_by_app,
                 )
                 .post()
             } else {
@@ -134,7 +139,11 @@ impl CheckOperation {
                     println!("{}", app_info.check_update_type);
                 }
                 println!("{local_cmp_version} -> {}", remote_info.version);
-                println!("{}", remote_info.update_page_url);
+                if self.open_by_app {
+                    println!("file://{}", path.to_str().unwrap_or_default());
+                } else {
+                    println!("{}", remote_info.update_page_url);
+                }
                 println!("=====\n");
             }
         } else if self.verbose {
@@ -143,6 +152,8 @@ impl CheckOperation {
                     &app_info,
                     local_cmp_version.to_string(),
                     &remote_info,
+                    self.open_by_app,
+                    Some(format!("file://{}", path.to_str().unwrap_or_default())),
                 )
                 .post()
             } else {
@@ -151,7 +162,11 @@ impl CheckOperation {
                 println!("{}", app_info.check_update_type);
                 println!("local version {local_cmp_version}");
                 println!("remote version {}", remote_info.version);
-                println!("{}", remote_info.update_page_url);
+                if self.open_by_app && !app_info.is_mas_app() {
+                    println!("file://{}", path.to_str().unwrap_or_default());
+                } else {
+                    println!("{}", remote_info.update_page_url);
+                }
                 println!("-----\n");
             }
         }

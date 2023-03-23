@@ -17,6 +17,9 @@ struct Cli {
     /// 详细输出，仅支持检查更新的输出
     #[arg(short = 'v')]
     verbose: bool,
+    /// 检查更新输出中，使用“打开应用”替代“下载新版本安装包”
+    #[arg(short = 'o')]
+    open: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -72,6 +75,7 @@ fn main() {
                 let check_operation = appcu::CheckOperation {
                     notification,
                     verbose,
+                    open_by_app: cli.open,
                 };
                 check_operation.check_some(paths)
             }
@@ -82,6 +86,7 @@ fn main() {
             let check_operation = appcu::CheckOperation {
                 notification,
                 verbose,
+                open_by_app: cli.open,
             };
             check_operation.check_all()
         }

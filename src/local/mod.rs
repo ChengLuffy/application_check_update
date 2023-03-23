@@ -13,6 +13,21 @@ pub struct AppInfo {
     pub check_update_type: CheckUpType,
 }
 
+impl AppInfo {
+    pub fn is_mas_app(&self) -> bool {
+        matches!(
+            self.check_update_type,
+            CheckUpType::Mas {
+                bundle_id: _,
+                is_ios_app: _,
+            }
+        )
+    }
+    pub fn is_sparkle_app(&self) -> bool {
+        matches!(self.check_update_type, CheckUpType::Sparkle(_))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum CheckUpType {
     Mas { bundle_id: String, is_ios_app: bool },

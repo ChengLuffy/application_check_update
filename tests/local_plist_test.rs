@@ -27,3 +27,13 @@ fn check_app_info_test() {
         }
     }
 }
+
+#[test]
+fn test_app_info() {
+    let mas_path = std::path::Path::new("tests/test_sources/mas_app.app/").to_path_buf();
+    let mas_app_info = appcu::local::check_app_info(&mas_path).unwrap();
+    assert!(mas_app_info.is_mas_app());
+    let sparkle_path = std::path::Path::new("tests/test_sources/sparkle_app.app/").to_path_buf();
+    let sparkle_app_info = appcu::local::check_app_info(&sparkle_path).unwrap();
+    assert!(sparkle_app_info.is_sparkle_app());
+}
