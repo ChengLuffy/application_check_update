@@ -1,16 +1,23 @@
 use super::AppInfo;
 use crate::{request::RemoteInfo, TERMINAL_NOTIFIER_PATH};
 
+/// 通知信息结构体
 #[derive(Debug)]
 pub struct Notification {
+    /// 通知标题
     pub title: String,
+    /// 通知子标题
     pub subtitle: String,
+    /// 通知信息
     pub message: String,
+    /// 点击通知打开地址
     pub open_url: Option<String>,
+    /// 是否点击打开应用
     pub open_by_app: bool,
 }
 
 impl Notification {
+    /// 生成错误通知
     pub fn new_error_notification(msg: String) -> Self {
         Notification {
             title: "❌".to_string(),
@@ -20,6 +27,7 @@ impl Notification {
             open_by_app: false,
         }
     }
+    /// 生成获取版本信息错误的通知
     pub fn new_remote_get_failed(app_info: &AppInfo) -> Self {
         Notification {
             title: format!("❌{} 获取最新版本失败", app_info.name),
@@ -29,6 +37,7 @@ impl Notification {
             open_by_app: false,
         }
     }
+    /// 生成更新的通知
     pub fn new_update_notification(
         name: String,
         local_version: String,
@@ -38,12 +47,17 @@ impl Notification {
     ) -> Self {
         Notification {
             title: format!("🎉{} 有更新", name),
-            subtitle: "点击通知下载最新版本安装包".to_string(),
+            subtitle: if open_by_app {
+                "点击打开应用".to_string()
+            } else {
+                "点击通知下载最新版本安装包".to_string()
+            },
             message: format!("{} -> {}", local_version, remote_version),
             open_url: Some(update_page_url),
             open_by_app,
         }
     }
+    /// 生成详细信息通知
     pub fn new_verbose_notification(
         app_info: &AppInfo,
         local_version: String,
@@ -67,6 +81,7 @@ impl Notification {
             open_by_app,
         }
     }
+    /// 通知发送
     pub fn post(&self) {
         let mut terminal_notifier_path: String = TERMINAL_NOTIFIER_PATH.to_string();
         if terminal_notifier_path.is_empty() {

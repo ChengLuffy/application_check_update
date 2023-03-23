@@ -3,9 +3,12 @@ use rss::Channel;
 use skyscraper::html;
 use std::time::Duration;
 
+/// 远程版本信息
 #[derive(Debug)]
 pub struct RemoteInfo {
+    /// 远程版本
     pub version: String,
+    /// 应用更新地址
     pub update_page_url: String,
 }
 
@@ -14,17 +17,18 @@ pub struct RemoteInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// 查询 HomeBrew-Casks 内的版本信息
-///
-/// 读取 `Homebrew/homebrew-cask` 仓库 `Casks` 文件夹内的响应应用文件
 #[tokio::main]
 pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
+    // 应用名称需要变成小写，并替换空格为 `-`
     let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
+    // 如果有别名，使用别名
     let alias_keys = ALIAS.keys();
     let file_name = if !alias_keys.into_iter().any(|x| x == &bundle_id.to_string()) {
         &dealed_app_name
     } else {
         &ALIAS[bundle_id]
     };
+    // 请求信息
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
@@ -54,7 +58,8 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                     .as_str()
                     .unwrap_or_default()
                     .to_string();
-                // FIXME: 由于自己受伤只有一个 M1 Pro mac 无法确定下面的判断是否正确
+                // 获取对应系统的对应版本信息
+                // FIXME: 由于手上只有一个 M1 Pro mac 无法确定下面的判断是否正确
                 if ARM_SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
                     if let Some(variations) = json_value.get("variations") {
                         if let Some(arm64_system_name) = variations.get(ARM_SYSTEM_NAME.as_str()) {
@@ -88,6 +93,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
     }
 }
 
+/// 查询 Sparkle 分发的版本信息
 #[tokio::main]
 pub async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
     let client = reqwest::Client::builder()
@@ -98,6 +104,7 @@ pub async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
         if let Ok(bytes_content) = content.bytes().await {
             if let Ok(channel) = Channel::read_from(&bytes_content[..]) {
                 let mut items: Vec<rss::Item> = channel.items().into();
+                // 排序，防止第一个并不是最新的版本
                 // FIXME: 有些应用例如 playcover 2.0.1 版本，应用内 Info.plist 的版本却是 2.0.0 ，但是 shortVersion 又不是所有应用都有的
                 // FIXME: xml 格式也不统一，有些把版本信息放在 enclosure 内，有些是直接是标题，有些是 item 内
                 items.sort_by(|a, b| {
@@ -162,6 +169,7 @@ pub async fn sparkle_feed_check(feed_url: &str) -> RemoteInfo {
 pub fn area_check(bundle_id: &str, is_ios_app: bool) -> RemoteInfo {
     let mut mas_areas = MASAREAS.to_vec();
     mas_areas.insert(0, "".to_string());
+    // 依次检测默认区域和配置的区域
     for area_code in mas_areas {
         let remote_info_opt = mas_app_check(&area_code, bundle_id, is_ios_app);
         if let Some(remote_info) = remote_info_opt {

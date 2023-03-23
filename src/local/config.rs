@@ -3,15 +3,22 @@ use std::{collections::HashMap, ffi::OsString, fs};
 
 use crate::{local::check_app_info, IGNORES};
 
+/// 配置文件结构体
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+    /// 并发查询数
     pub threads_num: usize,
+    /// terminal-notifier 安装路径
     pub terminal_notifier_path: String,
+    /// Mac App Store 备用查询区域集合
     pub mas_area: Vec<String>,
+    /// Homebrew 查询别名映射
     pub alias: HashMap<String, String>,
+    /// 忽略查询应用集合
     pub ignore: Vec<String>,
 }
 
+/// 实现 default trait
 impl Default for Config {
     fn default() -> Self {
         let ignore = vec![

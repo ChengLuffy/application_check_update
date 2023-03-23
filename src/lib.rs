@@ -11,14 +11,21 @@ pub mod request;
 pub mod version_cmp;
 
 lazy_static! {
+    /// 忽略的应用 bundle_id 集合
     static ref IGNORES: Vec<String> = local::config::get_ignore_config();
+    /// homebrew 查询别名映射集合
     static ref ALIAS: HashMap<String, String> = local::config::get_alias_config();
+    /// MAS 备用查询区域代码集合
     static ref MASAREAS: Vec<String> = local::config::get_mas_areas();
+    /// 设备版本信息
     static ref ARM_SYSTEM_NAME: String = local::plist::get_arm_system_version();
+    /// terminal-notifier 的安装路径
     static ref TERMINAL_NOTIFIER_PATH: String = local::config::get_terminal_notifier_path();
+    /// 并发查询数量
     static ref THREADNUMS: usize = local::config::get_thread_nums();
 }
 
+/// 检查更新配置
 #[derive(Copy, Clone)]
 pub struct CheckOperation {
     pub notification: bool,
@@ -35,8 +42,10 @@ impl CheckOperation {
             if let Some(app_info) = local::check_app_info(&buf) {
                 self.check_update(app_info, path)
             } else if self.notification {
+                // 通知发送应用信息读取失败
                 Notification::new_error_notification(format!("{item} 应用信息读取失败")).post()
             } else {
+                // 打印应用信息读取失败
                 println!("+++++");
                 println!("{item} 应用信息读取失败");
                 println!("+++++\n");
@@ -55,15 +64,19 @@ impl CheckOperation {
             pool.execute(move || match item {
                 Ok(path) => {
                     let app_info = local::check_app_info(&path.path());
+                    // 这里不处理 else，原因是默认忽略以 `.` 开头的路径和不以 `.app` 结尾的路径
                     if let Some(info) = app_info {
                         temp_self.check_update(info, &path.path());
                     }
                 }
                 Err(error) => {
-                    println!("+++++");
-                    println!("{error:?}");
-                    println!("+++++\n");
-                    Notification::new_error_notification(format!("{error:?}")).post()
+                    if temp_self.notification {
+                        Notification::new_error_notification(format!("{error:?}")).post()
+                    } else {
+                        println!("+++++");
+                        println!("{error:?}");
+                        println!("+++++\n");
+                    }
                 }
             });
         }
@@ -73,10 +86,12 @@ impl CheckOperation {
     /// 根据应用类型查询更新并输出
     pub fn check_update(&self, app_info: AppInfo, path: &Path) {
         let check_update_type = &app_info.check_update_type;
+        // 默认 version 为 `-1`，约定查询完毕后还是 `-1` 的话就是查询失败
         let mut remote_info: RemoteInfo = RemoteInfo {
             version: "-1".to_string(),
             update_page_url: "".to_string(),
         };
+        // 最多尝试五次
         for _ in 0..5 {
             remote_info = match check_update_type {
                 CheckUpType::Mas {
@@ -88,12 +103,12 @@ impl CheckOperation {
                     app_name,
                     bundle_id,
                 } => request::homebrew_check(app_name, bundle_id),
-                // _ => RemoteInfo { version: "-2".to_string(), update_page_url: String::new() }
             };
             if remote_info.version != *"-1" {
                 break;
             }
         }
+        // 处理查询失败的情况
         if remote_info.version == *"-1" {
             if self.notification {
                 Notification::new_remote_get_failed(&app_info).post()
@@ -118,12 +133,14 @@ impl CheckOperation {
         };
         let ordering = cmp_version(local_cmp_version, &remote_info.version, false);
         if ordering.is_lt() {
-            // if &remote_info.version != "-2" {
+            // 判断为有更新
             if self.notification {
+                // 判断需要使用通知发送结果
                 Notification::new_update_notification(
                     app_info.name.clone(),
                     local_cmp_version.to_string(),
                     remote_info.version,
+                    // mas 应用还是打开 Mac App Store
                     if self.open_by_app && !&app_info.is_mas_app() {
                         format!("file://{}", path.to_str().unwrap_or_default())
                     } else {
@@ -147,6 +164,7 @@ impl CheckOperation {
                 println!("=====\n");
             }
         } else if self.verbose {
+            // 判断为没有更新但是需要详细输出
             if self.notification {
                 Notification::new_verbose_notification(
                     &app_info,
