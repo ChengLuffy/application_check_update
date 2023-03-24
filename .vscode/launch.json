@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu -vno /Applications/Telegram.app/'",
+      "name": "Debug executable 'appcu -vno /Applications/Visual Studio Code.app/'",
       "cargo": {
         "args": [
           "build",
@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": ["-vno", "/Applications/Telegram.app/"],
+      "args": ["-vno", "/Applications/Visual Studio Code.app/"],
       "cwd": "${workspaceFolder}"
     },
     {

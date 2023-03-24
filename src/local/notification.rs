@@ -65,19 +65,14 @@ impl Notification {
         open_by_app: bool,
         open_url: Option<String>,
     ) -> Self {
-        let open_url = if open_by_app && !app_info.is_mas_app() {
-            format!("file://{}", open_url.unwrap_or_default())
-        } else {
-            remote_info.update_page_url.clone()
-        };
         Notification {
             title: format!("{} 检查结束", app_info.name),
             subtitle: if open_by_app { "点击打开应用或MAS".to_string() } else { "点击通知下载最新版本安装包".to_string() },
             message: format!(
-                "{} -> {}\n{}",
-                local_version, remote_info.version, app_info.check_update_type
+                "{} -> {}",
+                local_version, remote_info.version
             ),
-            open_url: Some(open_url),
+            open_url: open_url,
             open_by_app,
         }
     }
@@ -96,7 +91,7 @@ impl Notification {
                 .arg("-message")
                 .arg(&self.message)
                 .arg("-open")
-                .arg(open_url)
+                .arg(open_url.replace(' ', "%20"))
                 .output(),
             None => std::process::Command::new(terminal_notifier_path)
                 .arg("-title")
