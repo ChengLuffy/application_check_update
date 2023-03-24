@@ -58,7 +58,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                     .as_str()
                     .unwrap_or_default()
                     .to_string();
-                // 获取对应系统的对应版本信息
+                // 获取对应系统的对应版本信息，如果没有就忽略
                 // FIXME: 由于手上只有一个 M1 Pro mac 无法确定下面的判断是否正确
                 if ARM_SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
                     if let Some(variations) = json_value.get("variations") {

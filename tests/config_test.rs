@@ -7,6 +7,11 @@ fn remote_default_config_test() {
     } else {
         panic!("获取默认配置错误")
     }
+    let config = appcu::local::config::Config::default();
+    assert_eq!(config.threads_num, 5);
+    assert!(config.terminal_notifier_path.is_empty());
+    assert!(config.mas_area.is_empty());
+    assert!(config.alias.is_empty());
 }
 
 #[tokio::main]
