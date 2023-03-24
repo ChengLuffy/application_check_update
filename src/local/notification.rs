@@ -69,10 +69,10 @@ impl Notification {
             title: format!("{} 检查结束", app_info.name),
             subtitle: if open_by_app { "点击打开应用或MAS".to_string() } else { "点击通知下载最新版本安装包".to_string() },
             message: format!(
-                "{} -> {}",
-                local_version, remote_info.version
+                "{} -> {}\n{}",
+                local_version, remote_info.version, app_info.check_update_type
             ),
-            open_url: open_url,
+            open_url,
             open_by_app,
         }
     }

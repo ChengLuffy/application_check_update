@@ -171,7 +171,11 @@ impl CheckOperation {
                     local_cmp_version.to_string(),
                     &remote_info,
                     self.open_by_app,
-                    Some(format!("file://{}", path.to_str().unwrap_or_default())),
+                    Some(if self.open_by_app && !&app_info.is_mas_app() {
+                        format!("file://{}", path.to_str().unwrap_or_default())
+                    } else {
+                        remote_info.update_page_url.to_owned()
+                    }),
                 )
                 .post()
             } else {
