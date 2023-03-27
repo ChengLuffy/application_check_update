@@ -1,5 +1,5 @@
 #[test]
-#[ignore]
+#[ignore = "local app"]
 fn check_update_test() {
     let wechat_path = std::path::Path::new("/Applications/WeChat.app/");
     let wechat_app_info = appcu::local::check_app_info(wechat_path).unwrap();
