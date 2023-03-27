@@ -1,6 +1,7 @@
 use plist::Value;
 use std::path::PathBuf;
 
+/// plist 内应用信息结构体
 pub struct InfoPlistInfo {
     pub version: String,
     pub short_version: String,
@@ -14,6 +15,7 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     let mut version_key_str = "CFBundleVersion";
     let mut bundle_id_key_str = "CFBundleIdentifier";
     let feed_url_key = "SUFeedURL";
+    // 如果不是是 Info.plist 文件，另外一套 key
     if !plist_path.ends_with("Info.plist") {
         short_version_key_str = "bundleShortVersionString";
         version_key_str = "bundleVersion";
@@ -21,21 +23,25 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
     }
     let value = Value::from_file(plist_path)
         .unwrap_or_else(|_| panic!("plist 文件读取错误 {plist_path:?}"));
+    // 读取 bundle_id
     let bundle_id = value
         .as_dictionary()
         .and_then(|dict| dict.get(bundle_id_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
+    // 读取 version
     let version = value
         .as_dictionary()
         .and_then(|dict| dict.get(version_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
+    // 读取 short_version
     let short_version = value
         .as_dictionary()
         .and_then(|dict| dict.get(short_version_key_str))
         .and_then(|id| id.as_string())
         .unwrap_or("");
+    // 如果 bundle_id 和版本信息为空，则换一个路径重新读取
     if bundle_id.is_empty() || (short_version.is_empty() && version.is_empty()) {
         let info_plist_path = plist_path
             .parent()
@@ -45,6 +51,7 @@ pub fn read_plist_info(plist_path: &PathBuf) -> InfoPlistInfo {
             .join("WrappedBundle/Info.plist");
         return read_plist_info(&info_plist_path);
     }
+    // 读取 SUFeedURL
     let feed_url_option = value
         .as_dictionary()
         .and_then(|dict| dict.get(feed_url_key))

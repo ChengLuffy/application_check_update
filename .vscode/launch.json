@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu alias org.gimp.gimp-2.10 gimp'",
+      "name": "Debug executable 'appcu -vno /Applications/Visual Studio Code.app/'",
       "cargo": {
         "args": [
           "build",
@@ -19,7 +19,25 @@
           "kind": "bin"
         }
       },
-      "args": ["alias org.gimp.gimp-2.10 gimp"],
+      "args": ["-vno", "/Applications/Visual Studio Code.app/"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'appcu alias /Applications/GIMP.app/ gimp'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=appcu",
+          "--package=appcu"
+        ],
+        "filter": {
+          "name": "appcu",
+          "kind": "bin"
+        }
+      },
+      "args": ["alias", "/Applications/GIMP.app/", "gimp"],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -61,7 +79,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu generate_config'",
+      "name": "Debug executable 'appcu generate-config'",
       "cargo": {
         "args": [
           "build",
@@ -73,7 +91,7 @@
           "kind": "bin"
         }
       },
-      "args": ["generate_config"],
+      "args": ["generate-config"],
       "cwd": "${workspaceFolder}"
     },
     {

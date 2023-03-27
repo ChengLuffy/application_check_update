@@ -16,6 +16,16 @@ appcu
 appcu /Applications/xx.app /Applications/yy.app
 ```
 
+使用 `terminal-notifier` 发送检查更新结果
+```
+appcu -n
+```
+
+使用 `terminal-notifier` 发送检查更新结果时，点击通知打开应用或商店
+```
+appcu -no
+```
+
 ### 参数说明
 #### generate-config/gc
 简写: `gc`，用于生成配置文件，详情请查看 `appcu help generate-config`
@@ -58,8 +68,13 @@ appcu alias /Applications/xx.app alias_name
 
 结合 `crontab` 可以实现定时检查更新，例如每天早上10点运行
 ```
-0 10 * * * appcu -n
+0 10 * * * /path/to/appcu -n
 ```
+
+#### -o
+在不使用此选项时，输出结果默认是最新版本的下载链接，包括通知的点击事件
+
+当使用此选项时，输出结果打印应用路径或 MAS 链接，点击通知时打开应用或者 MAS 主页
 
 #### -v
 输出所有详细信息，包括应用信息、应用匹配的检查更新方式、应用最新版本地址、应用版本号，**包括未发现新版本的应用信息**。
@@ -147,6 +162,8 @@ macOS 安装应用方式多样，批量检查更新的有效方式很少，之�
 
 ### 为什么采用 `Rust`？
 其实这样的应用采用 `Swift` 应该更好，但是之前看到好多安利 `Rust` 的文章，想着自己试一试这门语言，但是由于自己学习方法的不成熟，总是用写 iOS 应用的经验套用在 `Rust` 上，所以写的并不好。
+
+如果您有兴趣查看我的代码并提出更改意见的，那将是对我的最大帮助
 
 ## License
 应用采用 `MIT` 开源协议，详见 [LICENSE](LICENSE)

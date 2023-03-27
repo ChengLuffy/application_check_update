@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.colliderli.iina</string>
+	<string>com.colliderli.iina_test_source</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.3.1</string>
 	<key>CFBundleVersion</key>
