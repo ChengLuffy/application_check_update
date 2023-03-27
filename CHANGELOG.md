@@ -34,7 +34,7 @@
 ## [0.1.2] - 2023-02-22
 ### Fixes
   - 修复 `--version` 输出错误的版本信息
-  - 修复 `generate_config` 即使输入 `y` 也无法正常运行的问题
+  - 修复 `generate-config` 即使输入 `y` 也无法正常运行的问题
   - 修复 `ignore` `alias` 等命令无法按预期运行的问题
 ### Added
   - 添加安装脚本

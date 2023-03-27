@@ -144,12 +144,11 @@ fn get_config() -> Option<Config> {
     let mut path = dirs::home_dir().expect("未能定位到用户目录");
     path.push(".config/appcu/config.yaml");
     if path.exists() {
-        let content = fs::read_to_string(path).expect("读取配置文件时发生错误，`~/.config/appcu/config.yaml` 路径下不存在配置文件，您可以使用 `appcu generate_config` 生成一份默认配置文件");
+        let content = fs::read_to_string(path).expect("读取配置文件时发生错误，`~/.config/appcu/config.yaml` 路径下不存在配置文件，您可以使用 `appcu generate-config` 生成一份默认配置文件");
         let config: Config =
             serde_yaml::from_str(&content).expect("解析配置文件时发生错误，配置文件格式错误");
         Some(config)
     } else {
-        println!("未查到配置文件，您可以使用 `appcu generate_config` 生成一份默认配置文件");
         None
     }
 }
