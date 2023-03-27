@@ -144,6 +144,7 @@ pub fn check_app_info(entry: &Path) -> Option<AppInfo> {
                 // 其他应用统一为 Homebrew 查询
                 cu_type = CheckUpType::HomeBrew {
                     app_name: name_str.to_string(),
+                    // gimp 有一个版本的 bundle_id 是 `org.gimp.gimp-2.10:`
                     bundle_id: plist_info.bundle_id.replace(':', ""),
                 };
             }
