@@ -47,7 +47,7 @@ pub enum CheckUpType {
     HomeBrew { app_name: String, bundle_id: String },
 }
 
-/// 格式化输出
+/// 应用信息的格式化输出
 impl Display for CheckUpType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

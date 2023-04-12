@@ -18,6 +18,18 @@ pub struct Config {
     pub ignore: Vec<String>,
 }
 
+impl Config {
+    /// 写入配置文件
+    fn write_to_file(&self) {
+        let config_content = serde_yaml::to_string(self).expect("配置转换为文本错误");
+        // 没有缩进感觉不对，希望这么改不会出问题
+        let fmt_content = config_content.replace("\n-", "\n  -");
+        let mut path = dirs::home_dir().expect("未能定位到用户目录");
+        path.push(".config/appcu/config.yaml");
+        fs::write(path, fmt_content).expect("写入配置文件失败");
+    }
+}
+
 /// 实现 default trait
 impl Default for Config {
     fn default() -> Self {
@@ -47,7 +59,7 @@ pub fn alias(app_path: OsString, alias_name: OsString) {
             } else {
                 config.alias.insert(bundle_id.to_string(), alias_name);
             }
-            write_config(config);
+            config.write_to_file();
             println!("Done!")
         } else {
             println!("输入的 alias_name 读取失败")
@@ -67,18 +79,8 @@ pub fn ignore_some(bundle_id_vec: Vec<OsString>) {
             }
         }
     }
-    write_config(config);
+    config.write_to_file();
     println!("Done!")
-}
-
-/// 写入配置文件
-fn write_config(config: Config) {
-    let config_content = serde_yaml::to_string(&config).expect("配置转换为文本错误");
-    // 没有缩进感觉不对，希望这么改不会出问题
-    let fmt_content = config_content.replace("\n-", "\n  -");
-    let mut path = dirs::home_dir().expect("未能定位到用户目录");
-    path.push(".config/appcu/config.yaml");
-    fs::write(path, fmt_content).expect("写入配置文件失败");
 }
 
 /// 生成配置文件
@@ -88,6 +90,7 @@ pub fn generate_config() {
         "com.jetbrains.intellij.ce".to_string(),
         "intellij-idea-ce".to_string(),
     );
+    // 在生成默认配置文件时尝试设置 terminal-notifier 的地址
     let mut terminal_notifier_path: String = "".to_string();
     if let Ok(output) = std::process::Command::new("which")
         .arg("terminal-notifier")
