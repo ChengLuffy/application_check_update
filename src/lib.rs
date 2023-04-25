@@ -182,8 +182,7 @@ impl CheckOperation {
                 println!("-----");
                 println!("{}", app_info.name);
                 println!("{}", app_info.check_update_type);
-                println!("local version {local_cmp_version}");
-                println!("remote version {}", remote_info.version);
+                println!("{local_cmp_version} -> {}", remote_info.version);
                 if self.open_by_app && !app_info.is_mas_app() {
                     println!("file://{}", path.to_str().unwrap_or_default());
                 } else {
