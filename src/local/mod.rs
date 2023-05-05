@@ -39,6 +39,8 @@ impl AppInfo {
 /// 检查更新方式枚举
 #[derive(Debug, PartialEq)]
 pub enum CheckUpType {
+    /// 已经忽略的应用
+    Ignored,
     /// MAS 应用
     Mas { bundle_id: String, is_ios_app: bool },
     /// 使用 Sparkle 查询更新
@@ -51,6 +53,7 @@ pub enum CheckUpType {
 impl Display for CheckUpType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            CheckUpType::Ignored => write!(f, "已被配置文件忽略的应用"),
             CheckUpType::Mas {
                 bundle_id,
                 is_ios_app,
@@ -107,7 +110,13 @@ pub fn check_app_info(entry: &Path) -> Option<AppInfo> {
             if wrapper_plist_path.exists() {
                 let plist_info = plist::read_plist_info(wrapper_plist_path);
                 if config::check_is_ignore(&plist_info.bundle_id) {
-                    return None;
+                    return Some(AppInfo {
+                        name: name_str.to_string(),
+                        version: plist_info.version,
+                        short_version: plist_info.short_version,
+                        bundle_id: plist_info.bundle_id,
+                        check_update_type: CheckUpType::Ignored,
+                    });
                 }
                 let cu_type = CheckUpType::Mas {
                     bundle_id: plist_info.bundle_id.to_string(),
@@ -128,7 +137,13 @@ pub fn check_app_info(entry: &Path) -> Option<AppInfo> {
         } else {
             let plist_info = plist::read_plist_info(info_plist_path);
             if config::check_is_ignore(&plist_info.bundle_id) {
-                return None;
+                return Some(AppInfo {
+                    name: name_str.to_string(),
+                    version: plist_info.version,
+                    short_version: plist_info.short_version,
+                    bundle_id: plist_info.bundle_id,
+                    check_update_type: CheckUpType::Ignored,
+                });
             }
             let cu_type: CheckUpType;
             if receipt_path.exists() {

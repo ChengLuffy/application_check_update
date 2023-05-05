@@ -40,7 +40,9 @@ impl CheckOperation {
             let path = Path::new(&item);
             let buf = path.to_path_buf();
             if let Some(app_info) = local::check_app_info(&buf) {
-                self.check_update(app_info, path)
+                if app_info.check_update_type != CheckUpType::Ignored {
+                    self.check_update(app_info, path)
+                }
             } else if self.notification {
                 // 通知发送应用信息读取失败
                 Notification::new_error_notification(format!("{item} 应用信息读取失败")).post()
@@ -66,7 +68,9 @@ impl CheckOperation {
                     let app_info = local::check_app_info(&path.path());
                     // 这里不处理 else，原因是默认忽略以 `.` 开头的路径和不以 `.app` 结尾的路径
                     if let Some(info) = app_info {
-                        temp_self.check_update(info, &path.path());
+                        if info.check_update_type != CheckUpType::Ignored {
+                            temp_self.check_update(info, &path.path());
+                        }
                     }
                 }
                 Err(error) => {
@@ -94,6 +98,7 @@ impl CheckOperation {
         // 最多尝试五次
         for _ in 0..5 {
             remote_info = match check_update_type {
+                CheckUpType::Ignored => break,
                 CheckUpType::Mas {
                     bundle_id,
                     is_ios_app,
@@ -120,6 +125,7 @@ impl CheckOperation {
                 println!("remote version check failed");
                 println!("+++++\n");
             }
+            return;
         }
         // FIXME: 丑陋的代码，这一段代码变成这样的原因，Sparkle 应用各有各的写法，有的应用只有从 title 读取版本号，有的从 item 有的从 enclosure
         // FIXME: 版本号也有问题，有的 sparkle:version 是 x.x.x 的形式，有的 sparkle:shortVersionString 是
