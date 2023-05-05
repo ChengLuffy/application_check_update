@@ -79,11 +79,6 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                     version: version.to_string(),
                     update_page_url: url,
                 };
-            } else {
-                return RemoteInfo {
-                    version: "".to_string(),
-                    update_page_url: String::new(),
-                };
             }
         }
     }
@@ -177,8 +172,8 @@ pub fn area_check(bundle_id: &str, is_ios_app: bool) -> RemoteInfo {
         }
     }
     RemoteInfo {
-        version: String::new(),
-        update_page_url: "".to_string(),
+        version: "-1".to_string(),
+        update_page_url: String::new(),
     }
 }
 
@@ -197,33 +192,34 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
         .await
     {
         if let Ok(text) = resp.text().await {
-            let json_value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let result_count = json_value
-                .get("resultCount")
-                .unwrap()
-                .as_u64()
-                .unwrap_or_default();
-            if result_count != 0 {
-                let results = json_value.get("results").unwrap();
-                let item = results.get(0).unwrap();
-                let update_page_url = item
-                    .get("trackViewUrl")
+            if let Ok(json_value) = serde_json::from_str(&text) {
+                let json_value: serde_json::Value = json_value;
+                let result_count = json_value
+                    .get("resultCount")
                     .unwrap()
-                    .to_string()
-                    .replace('\"', "");
-                let mut version = item.get("version").unwrap().to_string().replace('\"', "");
-                // iOS 和 iPadOS 的应用不需要走这个流程
-                if !is_ios_app {
-                    // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
-                    // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
-                    // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
-                    let mut loop_limit_count = 0;
-                    loop {
-                        loop_limit_count += 1;
-                        if loop_limit_count > 5 {
-                            break;
-                        }
-                        if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
+                    .as_u64()
+                    .unwrap_or_default();
+                if result_count != 0 {
+                    let results = json_value.get("results").unwrap();
+                    let item = results.get(0).unwrap();
+                    let update_page_url = item
+                        .get("trackViewUrl")
+                        .unwrap()
+                        .to_string()
+                        .replace('\"', "");
+                    let mut version = item.get("version").unwrap().to_string().replace('\"', "");
+                    // iOS 和 iPadOS 的应用不需要走这个流程
+                    if !is_ios_app {
+                        // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
+                        // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
+                        // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
+                        let mut loop_limit_count = 0;
+                        loop {
+                            loop_limit_count += 1;
+                            if loop_limit_count > 5 {
+                                break;
+                            }
+                            if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
                             if let Ok(text) = resp.text().await {
                                 if let Ok(document) = html::parse(&text) {
                                     let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
@@ -240,19 +236,19 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                                 }
                             }
                         }
+                        }
                     }
+                    return Some(RemoteInfo {
+                        version,
+                        update_page_url: update_page_url.replace("https://", "macappstore://"),
+                    });
+                } else {
+                    return None;
                 }
-                return Some(RemoteInfo {
-                    version,
-                    update_page_url: update_page_url.replace("https://", "macappstore://"),
-                });
             } else {
                 return None;
             }
         }
     }
-    Some(RemoteInfo {
-        version: "-1".to_string(),
-        update_page_url: "".to_string(),
-    })
+    None
 }
