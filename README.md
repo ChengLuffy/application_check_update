@@ -84,12 +84,6 @@ appcu alias /Applications/xx.app alias_name
 
 ## 安装
 
-### 使用 Homebrew
-
-`brew install chengluffy/appcu/appcu`
-
-或者 `brew tap chengluffy/appcu` 然后 `brew install appcu`.
-
 ### 使用脚本
 由于需要将 appcu 移动到 `/usr/local/bin/` 文件夹下，所以需要 `sudo` 运行，您也可以通过 [Releases](https://github.com/ChengLuffy/application_check_update/releases) 页面自行下载
 
@@ -97,6 +91,14 @@ appcu alias /Applications/xx.app alias_name
 ```
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/chengluffy/application_check_update/master/appcu-install.sh)"
 ```
+
+### 使用 Homebrew
+
+由于项目为满足发布 Homebrew 的最低 **stars** 数目要求，所以只能使用自建 `tap`，如果您使用此方法安装 `appcu` 可能需要安装项目依赖 `rust`，所以推荐您使用上方脚本安装。
+
+`brew install chengluffy/appcu/appcu`
+
+或者 `brew tap chengluffy/appcu` 然后 `brew install appcu`.
 
 ### 自行编译
 需要 `rust` 环境
