@@ -1,4 +1,5 @@
 use std::{fmt::Display, path::Path};
+use crate::ALIAS;
 
 pub mod config;
 pub mod notification;
@@ -77,7 +78,13 @@ impl Display for CheckUpType {
                 bundle_id,
             } => {
                 let dealed_app_name = app_name.to_lowercase().replace(' ', "-");
-                write!(f, "检查更新方式为 HomeBrew，获取到的 bundle_id 为: {bundle_id}，默认的信息获取链接为: https://formulae.brew.sh/api/cask/{dealed_app_name}.json")
+                let alias_keys = ALIAS.keys();
+                let file_name = if !alias_keys.into_iter().any(|x| x == &bundle_id.to_string()) {
+                    &dealed_app_name
+                } else {
+                    &ALIAS[bundle_id]
+                };
+                write!(f, "检查更新方式为 HomeBrew，获取到的 bundle_id 为: {bundle_id}，默认的信息获取链接为: https://formulae.brew.sh/api/cask/{file_name}.json")
             }
         }
     }
