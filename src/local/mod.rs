@@ -1,5 +1,5 @@
-use std::{fmt::Display, path::Path};
 use crate::ALIAS;
+use std::{fmt::Display, path::Path};
 
 pub mod config;
 pub mod notification;
