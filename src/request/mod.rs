@@ -222,7 +222,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                             if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
                                 if let Ok(text) = resp.text().await {
                                     // 防止scrip影响解析
-                                    let cleaned = text.replace("<script", "<!-- <script").replace("</script>", "</script> -->");
+                                    let cleaned = text.replace("</script>", "<!-- </script> -->").replace("<script", "<!-- <script").replace("</script>", "</script> -->");
                                     match skyscraper::html::parse(&cleaned) {
                                         Ok(document) => {
                                             let xpath = skyscraper::xpath::parse("//h4").unwrap();
