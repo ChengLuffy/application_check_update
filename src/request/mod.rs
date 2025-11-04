@@ -1,6 +1,5 @@
 use super::{version_cmp, ALIAS, ARM_SYSTEM_NAME, MASAREAS};
 use rss::Channel;
-use skyscraper::html;
 use std::time::Duration;
 
 /// 远程版本信息
@@ -206,7 +205,8 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                         .get("trackViewUrl")
                         .unwrap()
                         .to_string()
-                        .replace('\"', "");
+                        .replace('\"', "")
+                        + "&platform=mac";
                     let mut version = item.get("version").unwrap().to_string().replace('\"', "");
                     // iOS 和 iPadOS 的应用不需要走这个流程
                     if !is_ios_app {
@@ -216,31 +216,39 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                         let mut loop_limit_count = 0;
                         loop {
                             loop_limit_count += 1;
-                            if loop_limit_count > 5 {
+                            if loop_limit_count > 1 {
                                 break;
                             }
                             if let Ok(resp) = client.get(&update_page_url).header("USER_AGENT", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15").send().await {
-                            if let Ok(text) = resp.text().await {
-                                if let Ok(document) = html::parse(&text) {
-                                    let xpath = skyscraper::xpath::parse::parse("//p[@class='l-column small-6 medium-12 whats-new__latest__version']").unwrap();
-                                    if let Ok(nodes) = xpath.apply(&document) {
-                                        if let Some(doc_node) = nodes.get(0) {
-                                            if let Some(text) = doc_node.get_text(&document) {
-                                                if let Some(last) = text.split(' ').last() {
-                                                    version = last.to_string();
-                                                    break;
+                                if let Ok(text) = resp.text().await {
+                                    // 防止scrip影响解析
+                                    let cleaned = text.replace("<script", "<!-- <script").replace("</script>", "</script> -->");
+                                    match skyscraper::html::parse(&cleaned) {
+                                        Ok(document) => {
+                                            let xpath = skyscraper::xpath::parse("//h4").unwrap();
+                                            let Ok(nodes) = xpath.apply(&document);
+                                            for doc_node in nodes {
+                                                if let Some(text) = doc_node.get_text(&document) {
+                                                    if text.contains("Version") {
+                                                        if let Some(last) = text.split(' ').last() {
+                                                            version = last.to_string();
+                                                            break;
+                                                        }
+                                                    }
                                                 }
                                             }
+                                        }
+                                        Err(_) => {
+                                            // eprintln!("HTML 解析失败: {}", e);
                                         }
                                     }
                                 }
                             }
                         }
-                        }
                     }
                     return Some(RemoteInfo {
                         version,
-                        update_page_url: update_page_url.replace("https://", "macappstore://"),
+                        update_page_url: update_page_url.replace("https://", "macappstore://"), // 修改 URL Schema 以使用商店应用打开
                     });
                 } else {
                     return None;

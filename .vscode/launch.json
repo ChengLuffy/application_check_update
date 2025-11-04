@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu -vno /Applications/Visual Studio Code.app/'",
+      "name": "Debug executable 'appcu -v /Applications/OpenCat.app/'",
       "cargo": {
         "args": [
           "build",
@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": ["-vno", "/Applications/Visual Studio Code.app/"],
+      "args": ["-v", "/Applications/OpenCat.app/"],
       "cwd": "${workspaceFolder}"
     },
     {

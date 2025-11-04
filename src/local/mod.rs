@@ -155,6 +155,7 @@ pub fn check_app_info(entry: &Path) -> Option<AppInfo> {
             let cu_type: CheckUpType;
             if receipt_path.exists() {
                 // `xx.app/Contents/_MASReceipt` 存在的话为 MAS 下载的应用，通过上面的排除，可以确认为 macOS 独享应用
+                // FIXME: OpenCat.app 从官网下载的 2.14.1 版本也会存在 `Contents/_MASReceipt` 目前还没有合适的解决方法
                 cu_type = CheckUpType::Mas {
                     bundle_id: plist_info.bundle_id.to_string(),
                     is_ios_app: false,

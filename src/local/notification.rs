@@ -50,7 +50,11 @@ impl Notification {
             subtitle: if open_by_app {
                 "点击打开应用或MAS".to_string()
             } else {
-                "点击通知下载最新版本安装包".to_string()
+                if update_page_url.starts_with("macappstore") {
+                    "点击通知打开MAS应用主页".to_string()
+                } else {
+                    "点击通知下载最新版本安装包".to_string()
+                }
             },
             message: format!("{} -> {}", local_version, remote_version),
             open_url: Some(update_page_url),
@@ -70,7 +74,11 @@ impl Notification {
             subtitle: if open_by_app {
                 "点击打开应用或MAS".to_string()
             } else {
-                "点击通知下载最新版本安装包".to_string()
+                if app_info.is_mas_app() {
+                    "点击通知打开MAS应用主页".to_string()
+                } else {
+                    "点击通知下载最新版本安装包".to_string()
+                }
             },
             message: format!(
                 "{} -> {}\n{}",
