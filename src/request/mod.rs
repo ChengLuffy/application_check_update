@@ -59,7 +59,7 @@ pub async fn homebrew_check(app_name: &str, bundle_id: &str) -> RemoteInfo {
                     .to_string();
                 // 获取对应系统的对应版本信息，如果没有就忽略
                 // FIXME: 由于手上只有一个 M1 Pro mac 无法确定下面的判断是否正确
-                if ARM_SYSTEM_NAME.len() > 0 && (arch_str == "aarch64" || arch_str == "arm") {
+                if !ARM_SYSTEM_NAME.is_empty() && (arch_str == "aarch64" || arch_str == "arm") {
                     if let Some(variations) = json_value.get("variations") {
                         if let Some(arm64_system_name) = variations.get(ARM_SYSTEM_NAME.as_str()) {
                             if let Some(url_value) = arm64_system_name.get("url") {
@@ -230,7 +230,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                                             for doc_node in nodes {
                                                 if let Some(text) = doc_node.get_text(&document) {
                                                     if text.contains("Version") {
-                                                        if let Some(last) = text.split(' ').last() {
+                                                        if let Some(last) = text.split(' ').next_back() {
                                                             version = last.to_string();
                                                             break;
                                                         }

@@ -75,7 +75,7 @@ pub fn get_arm_system_version() -> String {
         .and_then(|id| id.as_string())
         .unwrap_or("");
     if product_version.starts_with("26") {
-        return "arm64_sonoma".to_string();
+        return "arm64_tahoe".to_string();
     } else if product_version.starts_with("14") {
         return "arm64_sonoma".to_string();
     } else if product_version.starts_with("13") {
