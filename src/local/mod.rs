@@ -138,7 +138,6 @@ pub fn check_app_info(entry: &Path) -> Option<AppInfo> {
                 };
                 return Some(app_info);
             } else {
-                // FIXME: 确认是否应该在这里输出提示
                 return None;
             }
         } else {

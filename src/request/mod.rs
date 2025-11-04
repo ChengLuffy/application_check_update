@@ -210,7 +210,7 @@ async fn mas_app_check(area_code: &str, bundle_id: &str, is_ios_app: bool) -> Op
                     let mut version = item.get("version").unwrap().to_string().replace('\"', "");
                     // iOS 和 iPadOS 的应用不需要走这个流程
                     if !is_ios_app {
-                        // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 <p class="l-column small-6 medium-12 whats-new__latest__version">Version/版本 x.x.x</p>
+                        // FIXME: 某些 iOS 和 macOS 应用使用一样的 bundleid 现在的查询方法只会返回 iOS 的结果，例如：ServerCat PasteNow，暂时的解决方案：抓取网页数据，匹配 //h4 取带有 'Version' 的
                         // FIXME: 上述方案会偶发性查不到，原因是通过 trackViewUrl 获取的 html 文本可能是没查到信息前的 loading 文本，所以 loop 一下
                         // FIXME: 还有一种情况，例如 QQ 6.9.0 通过 iTunes api cn 可以查到 6.9.0 版本，但是 us 还是 6.8.9，所以统一改成再用应用主页查一遍
                         let mut loop_limit_count = 0;
