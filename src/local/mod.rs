@@ -4,6 +4,7 @@ use std::{fmt::Display, path::Path};
 pub mod config;
 pub mod notification;
 pub mod plist;
+pub mod local_app_info;
 
 /// 应用信息结构体
 #[derive(Debug)]
