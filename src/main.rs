@@ -1,4 +1,4 @@
-use clap::{arg, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::ffi::OsString;
 
 /// TODO: 提供 json 格式输出

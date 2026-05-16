@@ -7,7 +7,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu -v /Applications/OpenCat.app/'",
+      "name": "Debug executable 'appcu -v /Applications/ServerCat.app/'",
       "cargo": {
         "args": [
           "build",
@@ -19,7 +19,7 @@
           "kind": "bin"
         }
       },
-      "args": ["-v", "/Applications/OpenCat.app/"],
+      "args": ["-v", "/Applications/ServerCat.app/"],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -115,7 +115,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'appcu'",
+      "name": "Debug executable 'appcu -v'",
       "cargo": {
         "args": [
           "build",
@@ -127,7 +127,7 @@
           "kind": "bin"
         }
       },
-      "args": [],
+      "args": ["-v"],
       "cwd": "${workspaceFolder}"
     },
     {

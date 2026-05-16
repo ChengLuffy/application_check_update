@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Command;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApplicationInfo {
@@ -19,7 +19,8 @@ pub struct ApplicationInfo {
     pub path: Option<String>,
 }
 
-pub fn get_applications_info() -> Result<HashMap<String, ApplicationInfo>, Box<dyn std::error::Error>> {
+pub fn get_applications_info(
+) -> Result<HashMap<String, ApplicationInfo>, Box<dyn std::error::Error>> {
     let output = Command::new("system_profiler")
         .args(&["SPApplicationsDataType", "-json"])
         .output()?;
@@ -32,7 +33,7 @@ pub fn get_applications_info() -> Result<HashMap<String, ApplicationInfo>, Box<d
 
     // 直接解析为 HashMap
     let parsed: HashMap<String, Vec<ApplicationInfo>> = serde_json::from_str(&json_str)?;
-    
+
     if let Some(apps) = parsed.get("SPApplicationsDataType") {
         let applications: HashMap<String, ApplicationInfo> = apps
             .iter()
@@ -58,19 +59,19 @@ impl ApplicationInfo {
                 return false;
             }
         }
-        
+
         if let Some(source) = filter.obtained_from {
             if self.obtained_from != source {
                 return false;
             }
         }
-        
+
         if let Some(arch) = filter.architecture {
             if self.architecture != arch {
                 return false;
             }
         }
-        
+
         true
     }
 }
@@ -78,18 +79,18 @@ impl ApplicationInfo {
 // 使用过滤功能
 pub fn filter_applications() -> Result<(), Box<dyn std::error::Error>> {
     let applications = get_applications_info()?;
-    
+
     let filter = ApplicationFilter {
         name_contains: Some("chrome"),
         obtained_from: Some("Identified Developer"),
         architecture: None,
     };
-    
+
     println!("过滤结果:");
     for app in applications.values().filter(|a| a.matches_filter(&filter)) {
         println!("  - {} (来源: {})", app.name, app.obtained_from);
     }
-    
+
     Ok(())
 }
 
@@ -98,21 +99,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match get_applications_info() {
         Ok(applications) => {
             println!("找到 {} 个应用", applications.len());
-            
+
             // 按来源分类统计
             let mut by_source: HashMap<String, Vec<&ApplicationInfo>> = HashMap::new();
             for app in applications.values() {
-                by_source.entry(app.obtained_from.clone())
+                by_source
+                    .entry(app.obtained_from.clone())
                     .or_insert_with(Vec::new)
                     .push(app);
             }
-            
+
             // 打印统计信息
             println!("\n应用来源统计:");
             for (source, apps) in &by_source {
                 println!("  {}: {} 个应用", source, apps.len());
             }
-            
+
             // 打印前10个应用的信息
             println!("\n前10个应用详情:");
             for (i, app) in applications.values().take(10).enumerate() {
@@ -123,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   签名: {:?}", app.signed_by);
                 println!();
             }
-            
+
             // 查找特定来源的应用
             println!("来自 App Store 的应用:");
             for app in applications.values().filter(|a| a.obtained_from == "Apple") {
@@ -134,6 +136,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("错误: {}", e);
         }
     }
-    
+
     Ok(())
 }

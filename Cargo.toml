@@ -16,5 +16,5 @@ lazy_static = "*"
 dirs = "*"
 threadpool = "1.8.1"
 rss = { git = "https://github.com/ChengLuffy/rss.git" }
-skyscraper = "0.4.0"    # XPath for HTML web scraping
 clap = { version = "4.1.8", features = ["derive"] }
+scraper = "0.19"
