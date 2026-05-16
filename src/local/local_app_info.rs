@@ -22,7 +22,7 @@ pub struct ApplicationInfo {
 pub fn get_applications_info(
 ) -> Result<HashMap<String, ApplicationInfo>, Box<dyn std::error::Error>> {
     let output = Command::new("system_profiler")
-        .args(&["SPApplicationsDataType", "-json"])
+        .args(["SPApplicationsDataType", "-json"])
         .output()?;
 
     if !output.status.success() {
@@ -105,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for app in applications.values() {
                 by_source
                     .entry(app.obtained_from.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(app);
             }
 
