@@ -87,4 +87,4 @@ jobs:
           download-url: https://github.com/ChengLuffy/application_check_update/archive/refs/tags/${{ steps.get_version.outputs.version }}.tar.gz
           create-pullrequest: true
         env:
-          COMMITTER_TOKEN: ${{ secrets.BREW_TOKEN }}
+          COMMITTER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
